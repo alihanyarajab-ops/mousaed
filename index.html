@@ -177,6 +177,7 @@ nav button.a svg{animation:pop .35s both}
 .camwrap{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3;display:none;margin-bottom:10px}
 .camwrap video{width:100%;height:100%;object-fit:cover;display:block}
 .camline{position:absolute;left:8%;right:8%;top:50%;height:2px;background:#e5484d;box-shadow:0 0 8px #e5484d}
+.omr-live{position:relative;background:#080d0b;border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin:10px 0}.omr-live video{display:block;width:100%;max-height:58vh;object-fit:contain;background:#000}.omr-guide{position:absolute;inset:7% 9%;border:2px dashed #f5b942;border-radius:10px;pointer-events:none;box-shadow:0 0 0 999px #0003}.omr-guide.ready{border:3px solid #19b76b;box-shadow:0 0 0 999px #0002}.omr-camstatus{font-weight:bold;padding:8px;text-align:center;background:var(--card);border-radius:9px;margin:7px 0}
 .scanok{background:var(--gs)!important;border-color:var(--g)!important;color:var(--gd)}
 .scanbad{background:var(--rs)!important;border-color:var(--rd)!important;color:var(--rd)}
 .scanwarn{background:var(--as)!important;border-color:var(--am)!important}
@@ -339,14 +340,14 @@ function omrRead(g,W,H,h,qs){
   q.o.forEach((_,j)=>{
    const X=OMR_X0+j*OMR_DX,ring=[];
    for(let k=0;k<16;k++){const a=k*Math.PI/8,p=omrMap(h,X+12.5*Math.cos(a),y+12.5*Math.sin(a));ring.push(omrSample(g,W,H,p[0],p[1]))}
-   const ref=omrMedian(ring),thr=ref*0.6;let dark=0,n=0;
+   const ref=omrMedian(ring),thr=Math.max(18,ref*0.72);let dark=0,n=0;
    for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){if(dx*dx+dy*dy>36)continue;const p=omrMap(h,X+dx,y+dy);n++;if(omrSample(g,W,H,p[0],p[1])<thr)dark++}
    const r=dark/n;vals.push(r);all.push(r);pts.push(omrMap(h,X,y));
   });
   rows.push({q,vals,pts});
  });
  const sorted=all.slice().sort((a,b)=>a-b),base=sorted.length?sorted[Math.floor(sorted.length*0.2)]:0;
- const fillT=Math.min(0.72,base+0.30),weakT=base+0.12;
+ const fillT=Math.min(0.68,base+0.24),weakT=base+0.09;
  return rows.map(r=>{
   const idx=r.vals.map((v,j)=>({v,j})).sort((a,b)=>b.v-a.v),top=idx[0],sec=idx[1]||{v:0,j:0};
   let choice=null,status="فارغ";
@@ -870,17 +871,42 @@ function omrV(app){
   const skipped=t.qs.length-qs.length;
   stage.append(el("div",{class:"card"},el("h2",{},"ورقة الإجابة الضوئية"),el("div",{class:"mu"},"اطبع ورقة الطالب من الزر أدناه. اطلب من الطالب تعبئة الدوائر بالكامل بقلم داكن. بعد ذلك صوّر الورقة من أعلى أو ارفع صورة ممسوحة ضوئياً."),el("div",{class:"feature-note"},"اطبع الورقة من هذا الإصدار (فيها 4 مربعات سوداء في الزوايا). صوّر الورقة كاملة بحيث تظهر المربعات الأربعة؛ لا يشترط أن تكون الصورة مستقيمة تماماً لأن التطبيق يصحّح الميلان والمنظور تلقائياً. اختر «ورقة لكل طالب» ليتعرف التطبيق على الطالب من الباركود تلقائياً. يقرأ حتى 25 سؤال اختيار من متعدد (2–6 خيارات، وأسئلة صح/خطأ). راجع الإجابات على الصورة المعروضة قبل الاعتماد."),el("div",{class:"mu"},"عدد الأسئلة القابلة للمسح: "+qs.length+" · أسئلة مستثناة: "+skipped),el("button",{class:"btn",onclick:()=>printOMR(t,c,qs,null)},"طباعة ورقة عامة"),el("button",{class:"btn o",onclick:()=>printOMR(t,c,qs,c.students)},"طباعة ورقة لكل طالب (تعرّف تلقائي بالباركود)")));
   const student=el("select");c.students.forEach(x=>student.append(el("option",{value:x.id},x.name)));
-  const upload=el("button",{class:"btn o",onclick:()=>file.click()},"التقاط صورة أو اختيار صورة الورقة");
-  const help=el("div",{class:"mu",style:"margin-top:8px"},"سيتم عرض الإجابات التي اكتشفها النظام قبل اعتمادها. لن تُحفظ الدرجات إلا بعد الضغط على اعتماد وترحيل الدرجة.");
-  out.append(el("div",{class:"card"},el("h2",{},"الطالب والورقة المصوّرة"),el("label",{},"اسم الطالب"),student,file,upload,help));
-  file.onchange=()=>{const f=file.files&&file.files[0];if(!f)return;out.querySelectorAll(".omr-review").forEach(n=>n.remove());const url=URL.createObjectURL(f),img=new Image();
-   img.onload=()=>{URL.revokeObjectURL(url);const r=scanOMRImage(img,qs);if(!r.ok){alert(r.msg);return}
-    let line="";
-    if(r.code){const hit=c.students.find(x=>String(x.code)===String(r.code));if(hit){student.value=hit.id;line="تم التعرف على الطالب تلقائياً: "+hit.name}else line="قُرئ باركود ("+r.code+") لكنه لا يطابق طالباً في هذا الفصل؛ اختر الطالب يدوياً."}
-    else line="لم يُقرأ باركود الطالب؛ اختر الطالب من القائمة أعلاه.";
-    const ok=r.results.filter(x=>x.status==="تم اكتشاف الإجابة").length;line+=" · اكتُشفت "+ok+" من "+r.results.length+" إجابة.";if(r.legacy)line+=" · ⚠ ورقة بلا مربعات زوايا (قراءة تقريبية): صوّرها مستقيمة والجزء العلوي لأعلى، وراجع كل إجابة قبل الاعتماد.";
-    showOMRReview(r.results,qs,t,c,student.value,out,{canvas:r.canvas,line});};
-   img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر قراءة الصورة. جرّب صورة أخرى أو صيغة JPG/PNG.")};img.src=url;file.value="";};
+  const video=el("video",{playsinline:"",muted:"",autoplay:""});video.setAttribute("playsinline","");
+  const guide=el("div",{class:"omr-guide"}),live=el("div",{class:"omr-live"},video,guide);
+  const camStatus=el("div",{class:"omr-camstatus"},"الكاميرا متوقفة. اضغط تشغيل الكاميرا.");
+  const camStart=el("button",{class:"btn",onclick:async()=>{
+   try{
+    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("افتح التطبيق عبر HTTPS أو localhost للسماح بالكاميرا.");
+    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
+    video.srcObject=stream;await video.play();camStart.disabled=true;camStop.disabled=false;camStatus.textContent="وجّه الكاميرا إلى الورقة كاملة وأظهر المربعات السوداء الأربعة.";
+    let stable=0,busy=false,done=false;
+    const stop=()=>{clearInterval(timer);stream.getTracks().forEach(x=>x.stop());video.srcObject=null;camStart.disabled=false;camStop.disabled=true};
+    camStop.onclick=()=>{stop();camStatus.textContent="تم إيقاف الكاميرا."};
+    const timer=setInterval(()=>{
+     if(busy||done||!video.videoWidth)return;busy=true;
+     try{
+      const scale=Math.min(1,1000/Math.max(video.videoWidth,video.videoHeight)),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
+      const probe=document.createElement("canvas");probe.width=w;probe.height=h;probe.getContext("2d",{willReadFrequently:true}).drawImage(video,0,0,w,h);
+      const test=scanOMRImage(probe,qs);
+      if(test.ok){stable++;guide.classList.add("ready");camStatus.textContent=stable>=2?"تم ضبط الورقة! جارٍ التقاطها وقراءة الإجابات…":"تم العثور على الورقة. ثبّت الهاتف لحظة…";
+       if(stable>=2){done=true;const full=document.createElement("canvas");full.width=video.videoWidth||w;full.height=video.videoHeight||h;full.getContext("2d",{willReadFrequently:true}).drawImage(video,0,0,full.width,full.height);stop();processImage(full);}
+      }else{stable=0;guide.classList.remove("ready");camStatus.textContent="أحرّك الورقة داخل الإطار حتى تظهر الزوايا الأربع بوضوح…"}
+     }catch(e){stable=0;camStatus.textContent="جارٍ ضبط الصورة…"}finally{busy=false}
+    },850);
+   }catch(e){camStatus.textContent="تعذر تشغيل الكاميرا: "+(e.message||e);}
+  }},"📷 تشغيل الكاميرا");
+  const camStop=el("button",{class:"btn o",disabled:true,onclick:()=>{}},"إيقاف الكاميرا");
+  const snap=el("button",{class:"btn o",onclick:()=>{if(!video.videoWidth)return alert("شغّل الكاميرا أولاً.");const cv=document.createElement("canvas");cv.width=video.videoWidth;cv.height=video.videoHeight;cv.getContext("2d").drawImage(video,0,0);processImage(cv);}},"التقاط الآن");
+  const upload=el("button",{class:"btn o",onclick:()=>file.click()},"رفع صورة من الجهاز");
+  const help=el("div",{class:"mu",style:"margin-top:8px"},"يوجه التطبيق الكاميرا تلقائياً، وعندما يتعرف على الورقة وتثبت داخل الإطار يلتقطها ويقرأ التظليل. راجع الإجابات والدرجة قبل اعتمادها.");
+  out.append(el("div",{class:"card"},el("h2",{},"الكاميرا والتصحيح المباشر"),el("label",{},"اسم الطالب"),student,live,camStatus,camStart,camStop,snap,upload,file,help));
+  function processImage(img){out.querySelectorAll(".omr-review").forEach(n=>n.remove());const r=scanOMRImage(img,qs);if(!r.ok){camStatus.textContent=r.msg;alert(r.msg);return}
+   let line="";if(r.code){const hit=c.students.find(x=>String(x.code)===String(r.code));if(hit){student.value=hit.id;line="تم التعرف على الطالب تلقائياً: "+hit.name}else line="قُرئ باركود ("+r.code+") لكنه لا يطابق طالباً في هذا الفصل؛ اختر الطالب يدوياً."}
+   else line="لم يُقرأ باركود الطالب؛ اختر الطالب من القائمة أعلاه.";
+   const ok=r.results.filter(x=>x.status==="تم اكتشاف الإجابة").length;line+=" · اكتُشفت "+ok+" من "+r.results.length+" إجابة.";if(r.legacy)line+=" · ⚠ ورقة بلا مربعات زوايا (قراءة تقريبية): راجع كل إجابة قبل الاعتماد.";
+   camStatus.textContent="اكتملت القراءة. راجع الإجابات والدرجة أدناه.";showOMRReview(r.results,qs,t,c,student.value,out,{canvas:r.canvas,line});
+  }
+  file.onchange=()=>{const f=file.files&&file.files[0];if(!f)return;const url=URL.createObjectURL(f),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);processImage(img)};img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر قراءة الصورة. جرّب صورة أخرى أو صيغة JPG/PNG.")};img.src=url;file.value=""};
  };
  sc.onchange=st.onchange=draw;app.append(el("div",{class:"card"},el("h2",{},"اختر الفصل"),sc,el("h2",{style:"margin-top:12px"},"اختر الاختبار"),st),stage,out);draw();
 }
