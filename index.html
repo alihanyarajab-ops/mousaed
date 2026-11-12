@@ -174,10 +174,15 @@ nav button.a svg{animation:pop .35s both}
 .omr-sheet .omr-code{position:absolute;left:66px;top:1018px;line-height:0}
 .id-bar{display:flex;flex-direction:column;align-items:center;padding:0 0 2px;background:#fff}
 .id-bar svg{display:block;max-width:100%}
+.aicam{position:relative;background:#000;border-radius:14px;overflow:hidden;aspect-ratio:4/3;margin-bottom:6px}
+.aicam video{width:100%;height:100%;object-fit:contain;display:block}
+.aicam canvas{position:absolute;inset:0;width:100%;height:100%}
+.fchips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.fchip{border:1.5px solid var(--g);background:var(--gs);color:var(--gd);border-radius:999px;padding:8px 14px;font:inherit;font-weight:700;cursor:pointer}
+.fchip.talk{border-color:var(--am);background:var(--as);color:#8a5a00}
 .camwrap{position:relative;border-radius:14px;overflow:hidden;background:#000;aspect-ratio:4/3;display:none;margin-bottom:10px}
 .camwrap video{width:100%;height:100%;object-fit:cover;display:block}
 .camline{position:absolute;left:8%;right:8%;top:50%;height:2px;background:#e5484d;box-shadow:0 0 8px #e5484d}
-.omr-live{position:relative;background:#080d0b;border:1px solid var(--bd);border-radius:14px;overflow:hidden;margin:10px 0}.omr-live video{display:block;width:100%;max-height:58vh;object-fit:contain;background:#000}.omr-guide{position:absolute;inset:7% 9%;border:2px dashed #f5b942;border-radius:10px;pointer-events:none;box-shadow:0 0 0 999px #0003}.omr-guide.ready{border:3px solid #19b76b;box-shadow:0 0 0 999px #0002}.omr-camstatus{font-weight:bold;padding:8px;text-align:center;background:var(--card);border-radius:9px;margin:7px 0}
 .scanok{background:var(--gs)!important;border-color:var(--g)!important;color:var(--gd)}
 .scanbad{background:var(--rs)!important;border-color:var(--rd)!important;color:var(--rd)}
 .scanwarn{background:var(--as)!important;border-color:var(--am)!important}
@@ -280,7 +285,7 @@ function omrBinary(gray,W,H){
  return bin;
 }
 function omrCandidates(bin,W,H){
- const maxd=Math.max(W,H),minS=maxd*0.006,maxS=maxd*0.15,rw=Math.round(W*0.45),rh=Math.round(H*0.45);
+ const maxd=Math.max(W,H),minS=maxd*0.012,maxS=maxd*0.12,rw=Math.round(W*0.45),rh=Math.round(H*0.45);
  const regs=[[0,0],[W-rw,0],[0,H-rh],[W-rw,H-rh]],corner=[[0,0],[W,0],[0,H],[W,H]],out=[[],[],[],[]];
  const seen=new Uint8Array(W*H),stack=new Int32Array(W*H);
  regs.forEach((rg,ci)=>{
@@ -340,14 +345,14 @@ function omrRead(g,W,H,h,qs){
   q.o.forEach((_,j)=>{
    const X=OMR_X0+j*OMR_DX,ring=[];
    for(let k=0;k<16;k++){const a=k*Math.PI/8,p=omrMap(h,X+12.5*Math.cos(a),y+12.5*Math.sin(a));ring.push(omrSample(g,W,H,p[0],p[1]))}
-   const ref=omrMedian(ring),thr=Math.max(18,ref*0.72);let dark=0,n=0;
+   const ref=omrMedian(ring),thr=ref*0.6;let dark=0,n=0;
    for(let dy=-6;dy<=6;dy++)for(let dx=-6;dx<=6;dx++){if(dx*dx+dy*dy>36)continue;const p=omrMap(h,X+dx,y+dy);n++;if(omrSample(g,W,H,p[0],p[1])<thr)dark++}
    const r=dark/n;vals.push(r);all.push(r);pts.push(omrMap(h,X,y));
   });
   rows.push({q,vals,pts});
  });
  const sorted=all.slice().sort((a,b)=>a-b),base=sorted.length?sorted[Math.floor(sorted.length*0.2)]:0;
- const fillT=Math.min(0.68,base+0.24),weakT=base+0.09;
+ const fillT=Math.min(0.72,base+0.30),weakT=base+0.12;
  return rows.map(r=>{
   const idx=r.vals.map((v,j)=>({v,j})).sort((a,b)=>b.v-a.v),top=idx[0],sec=idx[1]||{v:0,j:0};
   let choice=null,status="فارغ";
@@ -432,7 +437,7 @@ function omrScan(gray,W,H,qs){
   const bin=omrBinary(cur.g,cur.W,cur.H),cand=omrCandidates(bin,cur.W,cur.H),quad=omrPickQuad(cand);
   if(quad){
    const ar=quad.pts.map(p=>p.area);
-   if(ar[3]<Math.max(ar[0],ar[1],ar[2])*1.12){if(rot<3)cur=omrRotate90(cur.g,cur.W,cur.H);continue}
+   if(ar[3]<Math.max(ar[0],ar[1],ar[2])*1.3){if(rot<3)cur=omrRotate90(cur.g,cur.W,cur.H);continue}
    const h=omrSolveH(OMR_MARK,quad.pts.map(p=>[p.x,p.y]));
    if(h){const results=omrRead(cur.g,cur.W,cur.H,h,qs);
     return{ok:true,results,code:omrReadBarcode(cur.g,cur.W,cur.H,h),g:cur.g,W:cur.W,H:cur.H,h,markers:quad.pts};}
@@ -480,7 +485,7 @@ function av(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return el("
 const cls=()=>S.classes.find(c=>c.id===arg);
 const pn=o=>{const p=S.pts[o]||0;return p>0?"pos":p<0?"neg":"neu"};
 function total(s){let t=Number(s.exam)||0;(s.marks||[]).forEach(m=>{if(m)t+=(S.pts[m.o]||0)*m.c});return t}
-const TITLES={scan:"التحضير بالباركود",space:"مساحة المعلم",tests:"واجباتي",grade:"تصحيح الأوراق",kashf:"طباعة الكشف",settings:"الإعدادات",add:"إضافة طلاب",attendance:"الحضور اليومي",reports:"تقارير الأداء",omr:"التصحيح الضوئي",certs:"الشهادات",cards:"بطاقات الطلاب",circles:"إضافات الدوائر",tools:"مركز أدوات المعلم"};
+const TITLES={scan:"التحضير بالباركود",space:"مساحة المعلم",tests:"واجباتي",grade:"تصحيح الأوراق",kashf:"طباعة الكشف",settings:"الإعدادات",add:"إضافة طلاب",attendance:"الحضور اليومي",reports:"تقارير الأداء",omr:"التصحيح الضوئي",cam:"الكاميرا الذكية",faces:"تسجيل وجوه الطلاب",camlog:"سجل الكاميرا",certs:"الشهادات",cards:"بطاقات الطلاب",circles:"إضافات الدوائر",tools:"مركز أدوات المعلم"};
 /* ===== أدوات مساعدة: رموز الطلاب، تنظيف الحضور، الدوائر ===== */
 function ensureCodes(){
  let changed=false,max=100000;const used=new Set();
@@ -635,7 +640,7 @@ function printOMR(t,c,qs,students){
 }
 
 function render(){
- stopCam();fixN();if(ensureCodes())save();syncOptions();
+ stopCam();try{smartStop()}catch(e){}fixN();if(ensureCodes())save();syncOptions();
  const hd=$("#hd"),app=$("#app"),nv=$("#nv");hd.replaceChildren();app.replaceChildren();nv.replaceChildren();window.scrollTo(0,0);
  const m=$("main");m.style.padding="";m.style.maxWidth="";
  if(!S.gEmail){hd.style.display="none";return welcome(app)}
@@ -645,7 +650,7 @@ function render(){
  hd.append(el("h1",{},view==="home"?"مساعد":view==="class"?(cls()?.name||""):view==="test"?(S.tests.find(x=>x.id===arg)?.title||"واجب"):TITLES[view]));
  const r=["home","class","add"].includes(view)?"home":view==="settings"?"settings":"space";
  [["home","الرئيسية","home"],["space","مساحة المعلم","space"],["settings","الإعدادات","set"]].forEach(t=>nv.append(el("button",{class:t[0]===r?"a":"",onclick:()=>root(t[0])},ic(t[2],24),t[1])));
- ({home,scan:scanV,class:classV,space,tests:testsV,test:testV,grade,kashf,settings,add:addV,attendance:attendanceV,reports:reportsV,omr:omrV,certs:certsV,cards:cardsV,circles:circlesV,tools:toolsV,board:boardV,lessons:lessonsV,slides:slidesV,pdf:pdfV})[view](app);
+ ({home,scan:scanV,class:classV,space,tests:testsV,test:testV,grade,kashf,settings,add:addV,attendance:attendanceV,reports:reportsV,omr:omrV,certs:certsV,cards:cardsV,circles:circlesV,tools:toolsV,board:boardV,lessons:lessonsV,slides:slidesV,pdf:pdfV,cam:camAIV,faces:facesV,camlog:camlogV})[view](app);
 }
 function welcome(app){
  const w=el("div",{class:"wel"}),l=el("div",{class:"lg"});
@@ -801,8 +806,294 @@ function addOpt(done,onAdded,after){
 }
 
 function menuRow(t,sub,icn,col,v){return el("div",{class:"card ls",onclick:()=>go(v)},el("div",{class:"ic",style:"background:"+col},ic(icn,22)),el("div",{style:"flex:1"},el("b",{},t),el("div",{class:"mu"},sub)))}
+/* ===== الكاميرا الذكية: التعرف على الوجوه + تسجيل السلوك مع مقطع فيديو (المعالجة على الجهاز فقط) ===== */
+var FACE_V="1.7.12",
+ FACE_LIB=["https://cdn.jsdelivr.net/npm/@vladmandic/face-api@"+FACE_V+"/dist/face-api.js","https://unpkg.com/@vladmandic/face-api@"+FACE_V+"/dist/face-api.js"],
+ FACE_MODELS=["https://cdn.jsdelivr.net/npm/@vladmandic/face-api@"+FACE_V+"/model/","https://unpkg.com/@vladmandic/face-api@"+FACE_V+"/model/"],
+ faceReady=null,smartStopFn=null;
+function smartStop(){if(smartStopFn){const f=smartStopFn;smartStopFn=null;try{f()}catch(e){}}}
+function loadScript(u){return new Promise((ok,no)=>{const s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=()=>{s.remove();no(new Error("load"))};document.head.append(s)})}
+function faceLoad(setMsg){
+ if(faceReady)return faceReady;
+ faceReady=(async()=>{
+  if(!window.faceapi){
+   let ok=false;
+   for(const u of FACE_LIB){try{if(setMsg)setMsg("جارٍ تحميل محرك التعرف على الوجوه…");await loadScript(u);if(window.faceapi){ok=true;break}}catch(e){}}
+   if(!ok)throw new Error("تعذر تحميل محرك الوجوه. تأكد من اتصال الإنترنت (مطلوب في أول استخدام فقط).");
+  }
+  let ok=false;
+  for(const m of FACE_MODELS){
+   try{if(setMsg)setMsg("جارٍ تحميل نماذج التعرف (مرة واحدة)…");
+    await Promise.all([faceapi.nets.tinyFaceDetector.loadFromUri(m),faceapi.nets.faceLandmark68TinyNet.loadFromUri(m),faceapi.nets.faceRecognitionNet.loadFromUri(m)]);ok=true;break}catch(e){}
+  }
+  if(!ok)throw new Error("تعذر تحميل نماذج التعرف على الوجوه. تأكد من اتصال الإنترنت.");
+  return true;
+ })();
+ faceReady.catch(()=>{faceReady=null});
+ return faceReady;
+}
+/* بيانات الوجوه تُحفظ على هذا الجهاز فقط (ليست ضمن نسخة Google الاحتياطية) */
+function faceDB(){try{return JSON.parse(localStorage.getItem("musaed_faces")||"{}")||{}}catch(e){return{}}}
+function faceSave(db){try{localStorage.setItem("musaed_faces",JSON.stringify(db));return true}catch(e){alert("تعذر حفظ بيانات الوجه: مساحة التخزين ممتلئة.");return false}}
+function fdist(a,b){let t=0;for(let i=0;i<a.length;i++){const d=a[i]-b[i];t+=d*d}return Math.sqrt(t)}
+function cropThumb(video,b){try{const c=document.createElement("canvas"),sz=96;c.width=c.height=sz;const m=Math.max(b.width,b.height)*1.25,cx=b.x+b.width/2,cy=b.y+b.height/2;c.getContext("2d").drawImage(video,cx-m/2,cy-m/2,m,m,0,0,sz,sz);return c.toDataURL("image/jpeg",.7)}catch(e){return null}}
+function mouthRatio(lm){try{const m=lm.getMouth(),d=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y),w=d(m[0],m[6]);return w>0?d(m[14],m[18])/w:0}catch(e){return 0}}
+function camErr(e){const m=e&&e.message||"";return /Permission|NotAllowed|denied/i.test(m+(e&&e.name||""))?"تعذر تشغيل الكاميرا. اسمح بالوصول للكاميرا من إعدادات المتصفح.":(m||"تعذر تشغيل الكاميرا.")}
+/* مقاطع الفيديو في IndexedDB على الجهاز */
+function clipDB(){return new Promise((ok,no)=>{const r=indexedDB.open("musaed_clips",1);r.onupgradeneeded=()=>r.result.createObjectStore("clips",{keyPath:"id"});r.onsuccess=()=>ok(r.result);r.onerror=()=>no(r.error)})}
+async function clipPut(rec){const db=await clipDB();return new Promise((ok,no)=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").put(rec);tx.oncomplete=()=>ok();tx.onerror=()=>no(tx.error)})}
+async function clipGet(id){const db=await clipDB();return new Promise((ok,no)=>{const q=db.transaction("clips").objectStore("clips").get(id);q.onsuccess=()=>ok(q.result);q.onerror=()=>no(q.error)})}
+async function clipDel(id){const db=await clipDB();return new Promise((ok,no)=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").delete(id);tx.oncomplete=()=>ok();tx.onerror=()=>no(tx.error)})}
+async function clipPurge(days){
+ try{const db=await clipDB(),gone=[],lim=Date.now()-days*864e5;
+  await new Promise(ok=>{const tx=db.transaction("clips","readwrite"),st=tx.objectStore("clips"),q=st.openCursor();q.onsuccess=()=>{const c=q.result;if(c){if(Date.parse(c.value.t)<lim){gone.push(c.value.id);c.delete()}c.continue()}};tx.oncomplete=()=>ok();tx.onerror=()=>ok()});
+  if(gone.length){(S.camEvents||[]).forEach(e=>{if(gone.includes(e.id))e.clip=false});save()}
+ }catch(e){}
+}
+async function clipClear(){try{const db=await clipDB();await new Promise(ok=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").clear();tx.oncomplete=()=>ok();tx.onerror=()=>ok()});(S.camEvents||[]).forEach(e=>e.clip=false);save()}catch(e){}}
+function optLabel(k){const o=OPTS.find(x=>x[0]===k);return o?o[1]:k}
+/* منح/خصم نقطة وتسجيل الحدث */
+function camAward(c,s,k){
+ s.marks=Array.isArray(s.marks)?s.marks:[];
+ let slot=s.marks.findIndex(m=>m&&m.o===k);
+ if(slot>=0)s.marks[slot].c=(Number(s.marks[slot].c)||1)+1;
+ else{slot=s.marks.findIndex(m=>!m);if(slot<0)s.marks.push({o:k,c:1});else s.marks[slot]={o:k,c:1}}
+ const ev={id:uid(),t:new Date().toISOString(),c:c.id,s:s.id,n:s.name,o:k,pts:S.pts[k]||0,clip:false};
+ S.camEvents=Array.isArray(S.camEvents)?S.camEvents:[];S.camEvents.push(ev);
+ if(S.camEvents.length>600)S.camEvents.splice(0,S.camEvents.length-600);
+ save();return ev;
+}
+function camRevert(ev){
+ const c=S.classes.find(x=>x.id===ev.c),s=c&&c.students.find(x=>x.id===ev.s);
+ if(s&&Array.isArray(s.marks)){const i=s.marks.findIndex(m=>m&&m.o===ev.o);if(i>=0){if((Number(s.marks[i].c)||1)>1)s.marks[i].c=Number(s.marks[i].c)-1;else s.marks[i]=null}}
+ S.camEvents=(S.camEvents||[]).filter(x=>x.id!==ev.id);save();clipDel(ev.id).catch(()=>{});
+}
+/* ---------- تسجيل وجه طالب ---------- */
+async function faceEnroll(s,done){
+ const video=el("video",{playsinline:"",muted:"",autoplay:"",style:"width:100%;border-radius:12px;background:#000;max-height:50vh"}),
+  msg=el("div",{class:"mu",style:"margin:8px 0;min-height:22px;text-align:center"},"…"),
+  fill=el("i",{style:"display:block;height:100%;width:0;background:var(--g);transition:width .2s"}),
+  bar=el("div",{style:"height:8px;border-radius:8px;background:var(--bd);overflow:hidden;margin-top:8px"},fill);
+ let stream=null,run=true;const samples=[];let thumb=null;
+ const stop=()=>{run=false;if(stream)stream.getTracks().forEach(t=>t.stop());stream=null};
+ modal(el("div",{},el("h2",{},"تسجيل وجه: "+s.name),video,bar,msg,el("button",{class:"btn o",onclick:()=>{stop();closeM()}},"إلغاء")));
+ try{
+  await faceLoad(m=>{msg.textContent=m});
+  stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:"user",width:{ideal:960},height:{ideal:720}},audio:false});
+  video.srcObject=stream;await video.play();
+ }catch(e){msg.textContent=camErr(e);stop();return}
+ const opts=new faceapi.TinyFaceDetectorOptions({inputSize:416,scoreThreshold:0.6}),
+  steps=["انظر إلى الكاميرا مباشرة","أدر رأسك قليلاً لليمين","أدر رأسك قليلاً لليسار","ارفع رأسك قليلاً","ابتسم","انظر مباشرة مرة أخرى"],N=steps.length;
+ let last=0;
+ while(run){
+  if(!document.body.contains(video)){stop();return}
+  try{
+   const all=await faceapi.detectAllFaces(video,opts).withFaceLandmarks(true).withFaceDescriptors();
+   if(all.length===0)msg.textContent="لا يظهر وجه — قرّب وجهك وتأكد من الإضاءة";
+   else if(all.length>1)msg.textContent="يجب أن يظهر وجه واحد فقط أمام الكاميرا";
+   else{
+    const d=all[0],b=d.detection.box;
+    if(b.width<video.videoWidth*0.18)msg.textContent="اقترب من الكاميرا أكثر";
+    else{
+     msg.textContent=steps[samples.length]||"";
+     const now=Date.now();
+     if(now-last>1100){last=now;samples.push(Array.from(d.descriptor,v=>Math.round(v*10000)/10000));
+      if(!thumb)thumb=cropThumb(video,b);
+      fill.style.width=Math.round(samples.length/N*100)+"%";
+      if(samples.length>=N)break}
+    }
+   }
+  }catch(e){}
+  await new Promise(r=>setTimeout(r,250));
+ }
+ stop();
+ if(samples.length<N)return;
+ const db=faceDB();let clash=null;
+ for(const id in db){if(id===s.id)continue;const e=db[id];if(e&&e.d&&e.d.some(x=>fdist(x,samples[0])<0.42)){clash=id;break}}
+ if(clash){let nm="";S.classes.forEach(c=>c.students.forEach(x=>{if(x.id===clash)nm=x.name}));if(!confirm("هذا الوجه يشبه جداً وجهاً مسجلاً باسم «"+(nm||"طالب آخر")+"». هل أنت متأكد أنه "+s.name+"؟")){closeM();return}}
+ db[s.id]={d:samples,img:thumb,t:new Date().toISOString()};
+ if(faceSave(db)){closeM();toast("تم تسجيل وجه "+s.name);if(done)done()}
+}
+function facesV(app){
+ if(!S.classes.length||!S.classes.some(c=>c.students.length))return app.append(el("div",{class:"card mu"},"أضف فصلاً وطلاباً أولاً."));
+ const sc=selClass(),out=el("div");
+ const draw=()=>{
+  out.replaceChildren();const c=S.classes.find(x=>x.id===sc.value)||S.classes[0],db=faceDB();
+  const n=c.students.filter(s=>db[s.id]&&db[s.id].d&&db[s.id].d.length).length;
+  out.append(el("div",{class:"statgrid"},el("div",{class:"stat"},el("b",{},n),el("span",{},"وجوه مسجلة")),el("div",{class:"stat"},el("b",{},c.students.length-n),el("span",{},"لم تُسجَّل"))));
+  const box=el("div",{class:"card"});
+  c.students.forEach((s,i)=>{
+   const e=db[s.id],has=e&&e.d&&e.d.length;
+   const pic=has&&e.img?el("img",{src:e.img,style:"width:42px;height:42px;border-radius:50%;object-fit:cover"}):av(s.name);
+   box.append(el("div",{class:"row",style:"padding:8px 0;border-bottom:1px solid var(--bd);gap:10px"},pic,el("div",{style:"flex:1"},el("b",{},(i+1)+". "+s.name),el("div",{class:"mu"},has?"✅ مسجّل":"لم يُسجَّل")),
+    el("button",{class:"smallbtn",onclick:()=>faceEnroll(s,draw)},has?"إعادة":"تسجيل الوجه"),
+    has?el("button",{class:"del",title:"حذف بيانات وجهه",onclick:()=>{if(confirm("حذف بيانات وجه "+s.name+"؟")){const d=faceDB();delete d[s.id];faceSave(d);draw()}}},ic("trash",18)):""));
+  });
+  out.append(box,el("button",{class:"btn o",style:"color:var(--rd);border-color:var(--rd)",onclick:()=>{if(confirm("حذف بيانات جميع الوجوه من هذا الجهاز؟")){faceSave({});draw()}}},"حذف كل بيانات الوجوه من هذا الجهاز"));
+ };
+ sc.onchange=draw;
+ app.append(el("div",{class:"card"},el("h2",{},"تسجيل وجوه الطلاب"),el("div",{class:"mu",style:"line-height:1.8"},"يصوّر كل طالب وجهه مرة واحدة (6 لقطات بزوايا بسيطة، نحو 10 ثوانٍ). تُحفظ البصمة الرقمية وصورة مصغّرة على هذا الجهاز فقط، ولا تُرفع إلى Google أو أي خادم."),
+  el("div",{class:"hint"},"تنبيه: تأكد من موافقة إدارة المدرسة وأولياء الأمور قبل تسجيل وجوه الطلاب."),el("h2",{style:"margin-top:12px"},"الفصل"),sc),out);
+ draw();
+}
+/* ---------- الكاميرا الذكية المباشرة ---------- */
+function camAIV(app){
+ if(!S.classes.length||!S.classes.some(c=>c.students.length))return app.append(el("div",{class:"card mu"},"أضف فصلاً وطلاباً أولاً."));
+ clipPurge(45);
+ const sc=selClass(),video=el("video",{playsinline:"",muted:"",autoplay:""}),cv=el("canvas"),wrap=el("div",{class:"aicam",style:"display:none"},video,cv),
+  stat=el("div",{class:"mu",style:"margin:8px 0;min-height:20px"}),chips=el("div",{class:"fchips"}),
+  btn=el("button",{class:"btn"},"▶ تشغيل الكاميرا الذكية"),
+  facing=el("select",{},el("option",{value:"environment"},"الكاميرا الخلفية"),el("option",{value:"user"},"الكاميرا الأمامية")),
+  sens=el("select",{},el("option",{value:"0.45"},"صارمة (أقل أخطاء)"),el("option",{value:"0.5",selected:""},"متوسطة"),el("option",{value:"0.56"},"متساهلة (تتعرف أكثر)")),
+  mic=el("input",{type:"checkbox"}),recChk=el("input",{type:"checkbox"}),canRec=typeof MediaRecorder!=="undefined";
+ sens.value="0.5";recChk.checked=canRec;recChk.disabled=!canRec;
+ let run=false,stream=null,tracks=[],matcher=null,timer=null,sig="",ring=[],waiters=[],segT=null,rec=null,mime="";const recent={};
+ const getC=()=>S.classes.find(x=>x.id===sc.value)||S.classes[0];
+ const stuById=id=>{const c=getC();return c.students.find(x=>x.id===id)};
+ const pickMime=()=>{if(!canRec)return"";for(const m of["video/webm;codecs=vp8,opus","video/webm;codecs=vp9,opus","video/webm","video/mp4"]){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}return""};
+ const segStart=()=>{
+  if(!run||!stream)return;
+  const chunks=[];let r;
+  try{r=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:1200000}:{videoBitsPerSecond:1200000})}catch(e){return}
+  r.ondataavailable=e=>{if(e.data&&e.data.size)chunks.push(e.data)};
+  r.onstop=()=>{const b=new Blob(chunks,{type:r.mimeType||mime||"video/webm"});if(b.size>0){ring.push(b);if(ring.length>2)ring.shift();waiters.splice(0).forEach(w=>w(b))}else waiters.splice(0);if(run)segStart()};
+  r.start();rec=r;segT=setTimeout(()=>{try{if(r.state!=="inactive")r.stop()}catch(e){}},5000);
+ };
+ const clipFor=ev=>{
+  const before=ring.length?ring[ring.length-1]:null;
+  waiters.push(b=>{const parts=[before,b].filter(Boolean);
+   clipPut({id:ev.id,s:ev.s,t:ev.t,parts}).then(()=>{if((S.camEvents||[]).includes(ev)){ev.clip=true;save()}else clipDel(ev.id).catch(()=>{})}).catch(()=>{})});
+ };
+ const stopAll=()=>{
+  run=false;clearTimeout(timer);clearTimeout(segT);
+  try{if(rec&&rec.state!=="inactive")rec.stop()}catch(e){}
+  if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;rec=null;tracks=[];
+  wrap.style.display="none";btn.textContent="▶ تشغيل الكاميرا الذكية";chips.replaceChildren();sig="";
+ };
+ const apply=(stu,k)=>{
+  closeM();const key=stu.id+"|"+k,now=Date.now();if(recent[key]&&now-recent[key]<3000)return;recent[key]=now;
+  const ev=camAward(getC(),stu,k),p=S.pts[k]||0;beep(p>=0);
+  toast(stu.name+": "+optLabel(k)+" ("+(p>0?"+":"")+p+") · المجموع "+total(stu),()=>camRevert(ev));
+  if(recChk.checked&&run)clipFor(ev);
+ };
+ const sheet=stu=>{
+  const e=faceDB()[stu.id],pos=["part","great","help","create","top"],neg=["noisy","phone","sleep"];
+  const mk=k=>{const o=OPTS.find(x=>x[0]===k);if(!o)return"";const p=S.pts[k]||0;return el("button",{class:"btn"+(p<0?" o":""),style:p<0?"color:var(--rd);border-color:var(--rd)":"",onclick:()=>apply(stu,k)},o[1]+" ("+(p>0?"+":"")+p+")")};
+  const more=el("select",{},el("option",{value:""},"خيار آخر…"),...OPTS.map(o=>el("option",{value:o[0]},o[1]+" ("+((S.pts[o[0]]||0)>0?"+":"")+(S.pts[o[0]]||0)+")")));
+  more.onchange=()=>{if(more.value)apply(stu,more.value)};
+  modal(el("div",{},el("div",{class:"row",style:"gap:10px"},e&&e.img?el("img",{src:e.img,style:"width:48px;height:48px;border-radius:50%;object-fit:cover"}):av(stu.name),el("div",{style:"flex:1"},el("h2",{style:"margin:0"},stu.name),el("div",{class:"mu"},"مجموع النقاط الآن: "+total(stu)))),
+   el("h2",{style:"margin-top:12px"},"إيجابي"),...pos.map(mk),el("h2",{style:"margin-top:12px"},"سلبي"),...neg.map(mk),el("div",{style:"margin-top:12px"},more),el("button",{class:"btn o",onclick:closeM},"إلغاء")));
+ };
+ const drawOverlay=()=>{
+  const cw=wrap.clientWidth,ch=wrap.clientHeight,vw=video.videoWidth,vh=video.videoHeight;if(!cw||!vw)return;
+  if(cv.width!==cw||cv.height!==ch){cv.width=cw;cv.height=ch}
+  const x=cv.getContext("2d"),s=Math.min(cw/vw,ch/vh),ox=(cw-vw*s)/2,oy=(ch-vh*s)/2,now=Date.now();
+  x.clearRect(0,0,cw,ch);x.lineWidth=3;x.font="bold 15px sans-serif";x.textBaseline="top";
+  tracks.forEach(k=>{if(!k.box)return;const b=k.box,bx=ox+b.x*s,by=oy+b.y*s,bw=b.width*s,bh=b.height*s,stu=k.label&&stuById(k.label),talk=now-k.talk<1500;
+   x.strokeStyle=stu?(talk?"#f5a524":"#12a150"):"#9aa5b1";x.strokeRect(bx,by,bw,bh);
+   const txt=stu?(stu.name+(talk?" 🗣":"")):"غير معروف",tw=x.measureText(txt).width+12;
+   x.fillStyle=stu?(talk?"#f5a524":"#12a150"):"#6b7682";x.fillRect(bx,Math.max(0,by-24),tw,24);x.fillStyle="#fff";x.fillText(txt,bx+6,Math.max(0,by-24)+4)});
+ };
+ const drawChips=()=>{
+  const now=Date.now(),seen=[];tracks.forEach(k=>{if(k.label&&!seen.some(z=>z.label===k.label))seen.push(k)});
+  const s2=seen.map(k=>k.label+(now-k.talk<1500?"t":"")).join(",");if(s2===sig)return;sig=s2;
+  chips.replaceChildren(...seen.map(k=>{const stu=stuById(k.label);if(!stu)return"";const t=now-k.talk<1500;return el("button",{class:"fchip"+(t?" talk":""),onclick:()=>sheet(stu)},stu.name+(t?" 🗣":""))}));
+ };
+ const process=dets=>{
+  const now=Date.now(),used=new Set();
+  dets.forEach(d=>{
+   const b=d.detection.box,cx=b.x+b.width/2,cy=b.y+b.height/2;let t=null,best=1e9;
+   tracks.forEach(k=>{const dd=Math.hypot(k.cx-cx,k.cy-cy);if(dd<best&&dd<Math.max(b.width,b.height)*0.8&&!used.has(k)){best=dd;t=k}});
+   if(!t){t={label:null,cand:null,unk:0,mr:[],talk:0,cx,cy};tracks.push(t)}
+   used.add(t);t.cx=cx;t.cy=cy;t.box=b;t.seen=now;
+   const m=matcher.findBestMatch(d.descriptor);
+   if(m.label&&m.label!=="unknown"){t.unk=0;if(t.label!==m.label){if(t.cand&&t.cand.l===m.label){t.cand.n++;if(t.cand.n>=2){t.label=m.label;t.cand=null}}else t.cand={l:m.label,n:1}}}
+   else{t.unk++;t.cand=null;if(t.unk>=4)t.label=null}
+   t.mr.push(mouthRatio(d.landmarks));if(t.mr.length>10)t.mr.shift();
+   if(t.mr.length>=6){const mean=t.mr.reduce((a,v)=>a+v,0)/t.mr.length,sd=Math.sqrt(t.mr.reduce((a,v)=>a+(v-mean)*(v-mean),0)/t.mr.length);if(sd>0.04)t.talk=now}
+  });
+  tracks=tracks.filter(k=>now-k.seen<1800);
+  const known=tracks.filter(k=>k.label).length;
+  stat.textContent="يعمل — "+tracks.length+" وجه ظاهر، "+known+" متعرَّف عليه. المس وجهاً أو اسماً لتسجيل نقطة."+(recChk.checked?" ● تسجيل المقاطع مفعّل":"");
+  drawOverlay();drawChips();
+ };
+ const loop=async()=>{
+  if(!run)return;const t0=performance.now();
+  try{if(video.readyState>=2){const dets=await faceapi.detectAllFaces(video,new faceapi.TinyFaceDetectorOptions({inputSize:512,scoreThreshold:0.45})).withFaceLandmarks(true).withFaceDescriptors();if(run)process(dets)}}catch(e){}
+  if(run)timer=setTimeout(loop,Math.max(60,250-(performance.now()-t0)));
+ };
+ const start=async()=>{
+  btn.disabled=true;stat.textContent="…";
+  try{
+   await faceLoad(m=>{stat.textContent=m});
+   const c=getC(),db=faceDB(),arr=[];
+   c.students.forEach(s=>{const e=db[s.id];if(e&&e.d&&e.d.length)arr.push(new faceapi.LabeledFaceDescriptors(s.id,e.d.map(v=>Float32Array.from(v))))});
+   if(!arr.length){stat.textContent="لا توجد وجوه مسجلة لهذا الفصل. سجّل وجوه الطلاب أولاً من «تسجيل وجوه الطلاب».";btn.disabled=false;return}
+   matcher=new faceapi.FaceMatcher(arr,Number(sens.value)||0.5);
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing.value,width:{ideal:1280},height:{ideal:720}},audio:!!mic.checked});
+   video.srcObject=stream;await video.play();
+   run=true;wrap.style.display="block";btn.textContent="■ إيقاف الكاميرا";smartStopFn=stopAll;
+   if(recChk.checked){mime=pickMime();segStart()}
+   loop();
+  }catch(e){stat.textContent=camErr(e);stopAll()}
+  btn.disabled=false;
+ };
+ btn.onclick=()=>{if(run){stopAll();stat.textContent="";smartStopFn=null}else start()};
+ sc.onchange=()=>{if(run){stopAll();stat.textContent="تم الإيقاف عند تغيير الفصل."}};
+ wrap.onclick=e=>{
+  const r=cv.getBoundingClientRect(),vw=video.videoWidth,vh=video.videoHeight;if(!vw)return;
+  const s=Math.min(r.width/vw,r.height/vh),ox=(r.width-vw*s)/2,oy=(r.height-vh*s)/2,px=(e.clientX-r.left-ox)/s,py=(e.clientY-r.top-oy)/s;
+  const hit=tracks.find(k=>k.box&&px>=k.box.x&&px<=k.box.x+k.box.width&&py>=k.box.y&&py<=k.box.y+k.box.height);
+  if(!hit)return;const stu=hit.label&&stuById(hit.label);if(stu)sheet(stu);else toast("وجه غير معروف — سجّل وجهه أو اختر اسمه من القائمة بالأسفل");
+ };
+ const pickAny=el("select",{},el("option",{value:""},"تسجيل لطالب بدون كاميرا…"));
+ const fillPick=()=>{pickAny.replaceChildren(el("option",{value:""},"تسجيل لطالب بدون كاميرا…"),...getC().students.map(s=>el("option",{value:s.id},s.name)))};fillPick();
+ sc.addEventListener("change",fillPick);pickAny.onchange=()=>{const s=stuById(pickAny.value);pickAny.value="";if(s)sheet(s)};
+ app.append(
+  el("div",{class:"card"},el("h2",{},"الفصل"),sc,el("div",{class:"row",style:"gap:8px;margin-top:10px"},facing,sens),
+   el("label",{class:"row",style:"padding:8px 0;gap:8px"},recChk,"تسجيل مقطع فيديو (نحو 10 ثوانٍ) مع كل نقطة"),
+   el("label",{class:"row",style:"padding:0 0 4px;gap:8px"},mic,"تسجيل الصوت في المقطع"),btn),
+  el("div",{class:"card"},wrap,stat,chips,pickAny,
+   el("div",{class:"hint"},"المحرك يقترح الاسم ويلمّح لمن يتحرك فمه (🗣)، لكن القرار لك: لا تُمنح نقطة ولا يُخصم شيء إلا بلمستك. المقاطع تُحفظ على هذا الجهاز فقط وتُحذف تلقائياً بعد 45 يوماً.")),
+  el("div",{class:"toolbar"},el("button",{class:"btn s o",onclick:()=>go("faces")},"تسجيل وجوه الطلاب"),el("button",{class:"btn s o",onclick:()=>go("camlog")},"سجل الكاميرا والمقاطع")));
+}
+/* ---------- سجل الكاميرا والمقاطع ---------- */
+async function clipPlay(ev){
+ let r=null;try{r=await clipGet(ev.id)}catch(e){}
+ if(!r||!r.parts||!r.parts.length)return alert("المقطع غير موجود على هذا الجهاز (حُذف أو سُجّل على جهاز آخر).");
+ const urls=r.parts.map(b=>URL.createObjectURL(b));let i=0;
+ const v=el("video",{controls:"",playsinline:"",style:"width:100%;border-radius:12px;background:#000"});
+ const next=()=>{if(i<urls.length){v.src=urls[i++];v.play().catch(()=>{})}};v.onended=next;next();
+ const close=()=>{urls.forEach(u=>URL.revokeObjectURL(u));closeM()};
+ const dl=()=>r.parts.forEach((b,k)=>{const a=el("a",{href:urls[k],download:"clip_"+ev.n+"_"+(k+1)+(/mp4/.test(b.type)?".mp4":".webm")});document.body.append(a);a.click();a.remove()});
+ modal(el("div",{},el("h2",{},ev.n+" — "+optLabel(ev.o)),el("div",{class:"mu",style:"margin-bottom:8px"},new Date(ev.t).toLocaleString("ar-SA",{dateStyle:"medium",timeStyle:"short"})),v,el("button",{class:"btn o",onclick:dl},"تنزيل المقطع"),el("button",{class:"btn",onclick:close},"إغلاق")));
+}
+function camlogV(app){
+ clipPurge(45);
+ const sc=selClass();sc.prepend(el("option",{value:""},"كل الفصول"));sc.value="";const out=el("div");
+ const draw=()=>{
+  out.replaceChildren();
+  const list=(S.camEvents||[]).filter(e=>!sc.value||e.c===sc.value).slice().reverse();
+  if(!list.length)return out.append(el("div",{class:"mu",style:"text-align:center;padding:24px"},"لا توجد أحداث مسجلة بالكاميرا بعد."));
+  const box=el("div",{class:"card"});
+  list.slice(0,200).forEach(ev=>{
+   const p=Number(ev.pts)||0;
+   box.append(el("div",{class:"row",style:"padding:9px 0;border-bottom:1px solid var(--bd);gap:8px"},
+    el("div",{style:"flex:1;min-width:0"},el("b",{},ev.n),el("div",{class:"mu"},optLabel(ev.o)+" · "+new Date(ev.t).toLocaleString("ar-SA",{dateStyle:"short",timeStyle:"short"}))),
+    el("span",{class:"tot"+(p<0?" neg":"")},(p>0?"+":"")+p),
+    ev.clip?el("button",{class:"smallbtn",onclick:()=>clipPlay(ev)},"▶ مقطع"):"",
+    el("button",{class:"del",title:"حذف السجل وإلغاء نقاطه",onclick:()=>{if(confirm("حذف هذا السجل مع مقطعه وإلغاء نقطته؟")){camRevert(ev);draw()}}},ic("trash",18))));
+  });
+  out.append(box);
+ };
+ sc.onchange=draw;
+ app.append(el("div",{class:"card"},el("h2",{},"سجل الكاميرا الذكية"),sc),out,
+  el("button",{class:"btn o",style:"color:var(--rd);border-color:var(--rd)",onclick:async()=>{if(confirm("حذف جميع مقاطع الفيديو من هذا الجهاز؟ تبقى سجلات النقاط.")){await clipClear();draw()}}},"حذف كل المقاطع من هذا الجهاز"));
+ draw();
+}
+
 function space(app){
- app.append(menuRow("الحضور اليومي","تسجيل حضور وغياب وتأخر الطلاب","check","#0d9488","attendance"),menuRow("التحضير بالباركود","امسح بطاقة الطالب بالكاميرا أو بقارئ باركود","check","#0891b2","scan"),menuRow("تقارير الأداء","ملخص الحضور والنقاط لكل طالب","space","#6366f1","reports"),menuRow("واجباتي","الاختبارات وأوراق العمل المحفوظة","doc","#3b82f6","tests"),menuRow("تصحيح الأوراق","اختر الاختبار وعلّم الإجابات الصحيحة","check","#ec4899","grade"),menuRow("طباعة الكشف","اختر الفصل والأعمدة","print","#14b8a6","kashf"),menuRow("التصحيح الضوئي","طباعة ورقة إجابة ثم تصويرها بالهاتف أو رفعها","check","#0f766e","omr"),menuRow("الشهادات الذكية","إنشاء شهادة تقدير باسم الطالب قابلة للطباعة","doc","#b7791f","certs"),menuRow("بطاقات الطلاب","تصميم وطباعة بطاقات الفصل دفعة واحدة","space","#475569","cards"),menuRow("إضافات الدوائر","زيادة أو تقليل دوائر المتابعة لكل طالب","plus","#0d9488","circles"),menuRow("مركز أدوات المعلم","50 أداة لإدارة الفصل والدرجات والحضور والتقارير","space","#16834a","tools"));
+ app.append(menuRow("الحضور اليومي","تسجيل حضور وغياب وتأخر الطلاب","check","#0d9488","attendance"),menuRow("التحضير بالباركود","امسح بطاقة الطالب بالكاميرا أو بقارئ باركود","check","#0891b2","scan"),menuRow("الكاميرا الذكية","تعرّف على الطلاب بوجوههم وسجّل المشاركة والسلوك بلمسة مع مقطع فيديو","check","#7c3aed","cam"),menuRow("تسجيل وجوه الطلاب","كل طالب يصوّر وجهه مرة واحدة (يُحفظ على الجهاز فقط)","check","#a855f7","faces"),menuRow("سجل الكاميرا والمقاطع","راجع الأحداث والمقاطع وألغِ أي نقطة","check","#6d28d9","camlog"),menuRow("تقارير الأداء","ملخص الحضور والنقاط لكل طالب","space","#6366f1","reports"),menuRow("واجباتي","الاختبارات وأوراق العمل المحفوظة","doc","#3b82f6","tests"),menuRow("تصحيح الأوراق","اختر الاختبار وعلّم الإجابات الصحيحة","check","#ec4899","grade"),menuRow("طباعة الكشف","اختر الفصل والأعمدة","print","#14b8a6","kashf"),menuRow("التصحيح الضوئي","طباعة ورقة إجابة ثم تصويرها بالهاتف أو رفعها","check","#0f766e","omr"),menuRow("الشهادات الذكية","إنشاء شهادة تقدير باسم الطالب قابلة للطباعة","doc","#b7791f","certs"),menuRow("بطاقات الطلاب","تصميم وطباعة بطاقات الفصل دفعة واحدة","space","#475569","cards"),menuRow("إضافات الدوائر","زيادة أو تقليل دوائر المتابعة لكل طالب","plus","#0d9488","circles"),menuRow("مركز أدوات المعلم","50 أداة لإدارة الفصل والدرجات والحضور والتقارير","space","#16834a","tools"));
 }
 const printBox=n=>el("div",{id:"pa"},n);
 function testsV(app){
@@ -871,42 +1162,17 @@ function omrV(app){
   const skipped=t.qs.length-qs.length;
   stage.append(el("div",{class:"card"},el("h2",{},"ورقة الإجابة الضوئية"),el("div",{class:"mu"},"اطبع ورقة الطالب من الزر أدناه. اطلب من الطالب تعبئة الدوائر بالكامل بقلم داكن. بعد ذلك صوّر الورقة من أعلى أو ارفع صورة ممسوحة ضوئياً."),el("div",{class:"feature-note"},"اطبع الورقة من هذا الإصدار (فيها 4 مربعات سوداء في الزوايا). صوّر الورقة كاملة بحيث تظهر المربعات الأربعة؛ لا يشترط أن تكون الصورة مستقيمة تماماً لأن التطبيق يصحّح الميلان والمنظور تلقائياً. اختر «ورقة لكل طالب» ليتعرف التطبيق على الطالب من الباركود تلقائياً. يقرأ حتى 25 سؤال اختيار من متعدد (2–6 خيارات، وأسئلة صح/خطأ). راجع الإجابات على الصورة المعروضة قبل الاعتماد."),el("div",{class:"mu"},"عدد الأسئلة القابلة للمسح: "+qs.length+" · أسئلة مستثناة: "+skipped),el("button",{class:"btn",onclick:()=>printOMR(t,c,qs,null)},"طباعة ورقة عامة"),el("button",{class:"btn o",onclick:()=>printOMR(t,c,qs,c.students)},"طباعة ورقة لكل طالب (تعرّف تلقائي بالباركود)")));
   const student=el("select");c.students.forEach(x=>student.append(el("option",{value:x.id},x.name)));
-  const video=el("video",{playsinline:"",muted:"",autoplay:""});video.setAttribute("playsinline","");
-  const guide=el("div",{class:"omr-guide"}),live=el("div",{class:"omr-live"},video,guide);
-  const camStatus=el("div",{class:"omr-camstatus"},"الكاميرا متوقفة. اضغط تشغيل الكاميرا.");
-  const camStart=el("button",{class:"btn",onclick:async()=>{
-   try{
-    if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)throw new Error("افتح التطبيق عبر HTTPS أو localhost للسماح بالكاميرا.");
-    const stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:"environment"},width:{ideal:1920},height:{ideal:1080}},audio:false});
-    video.srcObject=stream;await video.play();camStart.disabled=true;camStop.disabled=false;camStatus.textContent="وجّه الكاميرا إلى الورقة كاملة وأظهر المربعات السوداء الأربعة.";
-    let stable=0,busy=false,done=false;
-    const stop=()=>{clearInterval(timer);stream.getTracks().forEach(x=>x.stop());video.srcObject=null;camStart.disabled=false;camStop.disabled=true};
-    camStop.onclick=()=>{stop();camStatus.textContent="تم إيقاف الكاميرا."};
-    const timer=setInterval(()=>{
-     if(busy||done||!video.videoWidth)return;busy=true;
-     try{
-      const scale=Math.min(1,1000/Math.max(video.videoWidth,video.videoHeight)),w=Math.round(video.videoWidth*scale),h=Math.round(video.videoHeight*scale);
-      const probe=document.createElement("canvas");probe.width=w;probe.height=h;probe.getContext("2d",{willReadFrequently:true}).drawImage(video,0,0,w,h);
-      const test=scanOMRImage(probe,qs);
-      if(test.ok){stable++;guide.classList.add("ready");camStatus.textContent=stable>=2?"تم ضبط الورقة! جارٍ التقاطها وقراءة الإجابات…":"تم العثور على الورقة. ثبّت الهاتف لحظة…";
-       if(stable>=2){done=true;const full=document.createElement("canvas");full.width=video.videoWidth||w;full.height=video.videoHeight||h;full.getContext("2d",{willReadFrequently:true}).drawImage(video,0,0,full.width,full.height);stop();processImage(full);}
-      }else{stable=0;guide.classList.remove("ready");camStatus.textContent="أحرّك الورقة داخل الإطار حتى تظهر الزوايا الأربع بوضوح…"}
-     }catch(e){stable=0;camStatus.textContent="جارٍ ضبط الصورة…"}finally{busy=false}
-    },850);
-   }catch(e){camStatus.textContent="تعذر تشغيل الكاميرا: "+(e.message||e);}
-  }},"📷 تشغيل الكاميرا");
-  const camStop=el("button",{class:"btn o",disabled:true,onclick:()=>{}},"إيقاف الكاميرا");
-  const snap=el("button",{class:"btn o",onclick:()=>{if(!video.videoWidth)return alert("شغّل الكاميرا أولاً.");const cv=document.createElement("canvas");cv.width=video.videoWidth;cv.height=video.videoHeight;cv.getContext("2d").drawImage(video,0,0);processImage(cv);}},"التقاط الآن");
-  const upload=el("button",{class:"btn o",onclick:()=>file.click()},"رفع صورة من الجهاز");
-  const help=el("div",{class:"mu",style:"margin-top:8px"},"يوجه التطبيق الكاميرا تلقائياً، وعندما يتعرف على الورقة وتثبت داخل الإطار يلتقطها ويقرأ التظليل. راجع الإجابات والدرجة قبل اعتمادها.");
-  out.append(el("div",{class:"card"},el("h2",{},"الكاميرا والتصحيح المباشر"),el("label",{},"اسم الطالب"),student,live,camStatus,camStart,camStop,snap,upload,file,help));
-  function processImage(img){out.querySelectorAll(".omr-review").forEach(n=>n.remove());const r=scanOMRImage(img,qs);if(!r.ok){camStatus.textContent=r.msg;alert(r.msg);return}
-   let line="";if(r.code){const hit=c.students.find(x=>String(x.code)===String(r.code));if(hit){student.value=hit.id;line="تم التعرف على الطالب تلقائياً: "+hit.name}else line="قُرئ باركود ("+r.code+") لكنه لا يطابق طالباً في هذا الفصل؛ اختر الطالب يدوياً."}
-   else line="لم يُقرأ باركود الطالب؛ اختر الطالب من القائمة أعلاه.";
-   const ok=r.results.filter(x=>x.status==="تم اكتشاف الإجابة").length;line+=" · اكتُشفت "+ok+" من "+r.results.length+" إجابة.";if(r.legacy)line+=" · ⚠ ورقة بلا مربعات زوايا (قراءة تقريبية): راجع كل إجابة قبل الاعتماد.";
-   camStatus.textContent="اكتملت القراءة. راجع الإجابات والدرجة أدناه.";showOMRReview(r.results,qs,t,c,student.value,out,{canvas:r.canvas,line});
-  }
-  file.onchange=()=>{const f=file.files&&file.files[0];if(!f)return;const url=URL.createObjectURL(f),img=new Image();img.onload=()=>{URL.revokeObjectURL(url);processImage(img)};img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر قراءة الصورة. جرّب صورة أخرى أو صيغة JPG/PNG.")};img.src=url;file.value=""};
+  const upload=el("button",{class:"btn o",onclick:()=>file.click()},"التقاط صورة أو اختيار صورة الورقة");
+  const help=el("div",{class:"mu",style:"margin-top:8px"},"سيتم عرض الإجابات التي اكتشفها النظام قبل اعتمادها. لن تُحفظ الدرجات إلا بعد الضغط على اعتماد وترحيل الدرجة.");
+  out.append(el("div",{class:"card"},el("h2",{},"الطالب والورقة المصوّرة"),el("label",{},"اسم الطالب"),student,file,upload,help));
+  file.onchange=()=>{const f=file.files&&file.files[0];if(!f)return;out.querySelectorAll(".omr-review").forEach(n=>n.remove());const url=URL.createObjectURL(f),img=new Image();
+   img.onload=()=>{URL.revokeObjectURL(url);const r=scanOMRImage(img,qs);if(!r.ok){alert(r.msg);return}
+    let line="";
+    if(r.code){const hit=c.students.find(x=>String(x.code)===String(r.code));if(hit){student.value=hit.id;line="تم التعرف على الطالب تلقائياً: "+hit.name}else line="قُرئ باركود ("+r.code+") لكنه لا يطابق طالباً في هذا الفصل؛ اختر الطالب يدوياً."}
+    else line="لم يُقرأ باركود الطالب؛ اختر الطالب من القائمة أعلاه.";
+    const ok=r.results.filter(x=>x.status==="تم اكتشاف الإجابة").length;line+=" · اكتُشفت "+ok+" من "+r.results.length+" إجابة.";if(r.legacy)line+=" · ⚠ ورقة بلا مربعات زوايا (قراءة تقريبية): صوّرها مستقيمة والجزء العلوي لأعلى، وراجع كل إجابة قبل الاعتماد.";
+    showOMRReview(r.results,qs,t,c,student.value,out,{canvas:r.canvas,line});};
+   img.onerror=()=>{URL.revokeObjectURL(url);alert("تعذر قراءة الصورة. جرّب صورة أخرى أو صيغة JPG/PNG.")};img.src=url;file.value="";};
  };
  sc.onchange=st.onchange=draw;app.append(el("div",{class:"card"},el("h2",{},"اختر الفصل"),sc,el("h2",{style:"margin-top:12px"},"اختر الاختبار"),st),stage,out);draw();
 }
