@@ -485,7 +485,7 @@ function av(n){let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%360;return el("
 const cls=()=>S.classes.find(c=>c.id===arg);
 const pn=o=>{const p=S.pts[o]||0;return p>0?"pos":p<0?"neg":"neu"};
 function total(s){let t=Number(s.exam)||0;(s.marks||[]).forEach(m=>{if(m)t+=(S.pts[m.o]||0)*m.c});return t}
-const TITLES={scan:"التحضير بالباركود",space:"مساحة المعلم",tests:"واجباتي",grade:"تصحيح الأوراق",kashf:"طباعة الكشف",settings:"الإعدادات",add:"إضافة طلاب",attendance:"الحضور اليومي",reports:"تقارير الأداء",omr:"التصحيح الضوئي",cam:"الكاميرا الذكية",faces:"تسجيل وجوه الطلاب",camlog:"سجل الكاميرا",certs:"الشهادات",cards:"بطاقات الطلاب",circles:"إضافات الدوائر",tools:"مركز أدوات المعلم"};
+const TITLES={scan:"التحضير بالباركود",space:"مساحة المعلم",tests:"واجباتي",grade:"تصحيح الأوراق",kashf:"طباعة الكشف",settings:"الإعدادات",add:"إضافة طلاب",attendance:"الحضور اليومي",reports:"تقارير الأداء",omr:"التصحيح الضوئي",cam:"الكاميرا الذكية",faces:"تسجيل وجوه الطلاب",camlog:"سجل الكاميرا",camsug:"مقترحات الكاميرا",certs:"الشهادات",cards:"بطاقات الطلاب",circles:"إضافات الدوائر",tools:"مركز أدوات المعلم"};
 /* ===== أدوات مساعدة: رموز الطلاب، تنظيف الحضور، الدوائر ===== */
 function ensureCodes(){
  let changed=false,max=100000;const used=new Set();
@@ -650,7 +650,7 @@ function render(){
  hd.append(el("h1",{},view==="home"?"مساعد":view==="class"?(cls()?.name||""):view==="test"?(S.tests.find(x=>x.id===arg)?.title||"واجب"):TITLES[view]));
  const r=["home","class","add"].includes(view)?"home":view==="settings"?"settings":"space";
  [["home","الرئيسية","home"],["space","مساحة المعلم","space"],["settings","الإعدادات","set"]].forEach(t=>nv.append(el("button",{class:t[0]===r?"a":"",onclick:()=>root(t[0])},ic(t[2],24),t[1])));
- ({home,scan:scanV,class:classV,space,tests:testsV,test:testV,grade,kashf,settings,add:addV,attendance:attendanceV,reports:reportsV,omr:omrV,certs:certsV,cards:cardsV,circles:circlesV,tools:toolsV,board:boardV,lessons:lessonsV,slides:slidesV,pdf:pdfV,cam:camAIV,faces:facesV,camlog:camlogV})[view](app);
+ ({home,scan:scanV,class:classV,space,tests:testsV,test:testV,grade,kashf,settings,add:addV,attendance:attendanceV,reports:reportsV,omr:omrV,certs:certsV,cards:cardsV,circles:circlesV,tools:toolsV,board:boardV,lessons:lessonsV,slides:slidesV,pdf:pdfV,explain:explainV,cam:camAIV,faces:facesV,camlog:camlogV,camsug:camsugV})[view](app);
 }
 function welcome(app){
  const w=el("div",{class:"wel"}),l=el("div",{class:"lg"});
@@ -847,18 +847,18 @@ async function clipDel(id){const db=await clipDB();return new Promise((ok,no)=>{
 async function clipPurge(days){
  try{const db=await clipDB(),gone=[],lim=Date.now()-days*864e5;
   await new Promise(ok=>{const tx=db.transaction("clips","readwrite"),st=tx.objectStore("clips"),q=st.openCursor();q.onsuccess=()=>{const c=q.result;if(c){if(Date.parse(c.value.t)<lim){gone.push(c.value.id);c.delete()}c.continue()}};tx.oncomplete=()=>ok();tx.onerror=()=>ok()});
-  if(gone.length){(S.camEvents||[]).forEach(e=>{if(gone.includes(e.id))e.clip=false});save()}
+  if(gone.length){(S.camEvents||[]).concat(S.camSug||[]).forEach(e=>{if(gone.includes(e.id))e.clip=false});save()}
  }catch(e){}
 }
-async function clipClear(){try{const db=await clipDB();await new Promise(ok=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").clear();tx.oncomplete=()=>ok();tx.onerror=()=>ok()});(S.camEvents||[]).forEach(e=>e.clip=false);save()}catch(e){}}
+async function clipClear(){try{const db=await clipDB();await new Promise(ok=>{const tx=db.transaction("clips","readwrite");tx.objectStore("clips").clear();tx.oncomplete=()=>ok();tx.onerror=()=>ok()});(S.camEvents||[]).concat(S.camSug||[]).forEach(e=>e.clip=false);save()}catch(e){}}
 function optLabel(k){const o=OPTS.find(x=>x[0]===k);return o?o[1]:k}
 /* منح/خصم نقطة وتسجيل الحدث */
-function camAward(c,s,k){
+function camAward(c,s,k,opt){
  s.marks=Array.isArray(s.marks)?s.marks:[];
  let slot=s.marks.findIndex(m=>m&&m.o===k);
  if(slot>=0)s.marks[slot].c=(Number(s.marks[slot].c)||1)+1;
  else{slot=s.marks.findIndex(m=>!m);if(slot<0)s.marks.push({o:k,c:1});else s.marks[slot]={o:k,c:1}}
- const ev={id:uid(),t:new Date().toISOString(),c:c.id,s:s.id,n:s.name,o:k,pts:S.pts[k]||0,clip:false};
+ const ev={id:(opt&&opt.id)||uid(),t:new Date().toISOString(),c:c.id,s:s.id,n:s.name,o:k,pts:S.pts[k]||0,clip:!!(opt&&opt.clip),auto:!!(opt&&opt.auto)};
  S.camEvents=Array.isArray(S.camEvents)?S.camEvents:[];S.camEvents.push(ev);
  if(S.camEvents.length>600)S.camEvents.splice(0,S.camEvents.length-600);
  save();return ev;
@@ -945,9 +945,16 @@ function camAIV(app){
   btn=el("button",{class:"btn"},"▶ تشغيل الكاميرا الذكية"),
   facing=el("select",{},el("option",{value:"environment"},"الكاميرا الخلفية"),el("option",{value:"user"},"الكاميرا الأمامية")),
   sens=el("select",{},el("option",{value:"0.45"},"صارمة (أقل أخطاء)"),el("option",{value:"0.5",selected:""},"متوسطة"),el("option",{value:"0.56"},"متساهلة (تتعرف أكثر)")),
-  mic=el("input",{type:"checkbox"}),recChk=el("input",{type:"checkbox"}),canRec=typeof MediaRecorder!=="undefined";
- sens.value="0.5";recChk.checked=canRec;recChk.disabled=!canRec;
- let run=false,stream=null,tracks=[],matcher=null,timer=null,sig="",ring=[],waiters=[],segT=null,rec=null,mime="";const recent={};
+  mic=el("input",{type:"checkbox"}),recChk=el("input",{type:"checkbox"}),canRec=typeof MediaRecorder!=="undefined",
+  mode=el("select",{},el("option",{value:"manual"},"يدوي: أنا ألمس لتسجيل النقاط"),el("option",{value:"suggest"},"تلقائي: اقتراحات أراجعها بعد الحصة"),el("option",{value:"deduct"},"تلقائي مباشر: خصم عند الكلام، ومشاركة وقت الأسئلة")),
+  talkSec=el("select",{},el("option",{value:"5000"},"كلام مستمر 5 ثوانٍ"),el("option",{value:"8000"},"كلام مستمر 8 ثوانٍ"),el("option",{value:"12000"},"كلام مستمر 12 ثانية")),
+  attChk=el("input",{type:"checkbox"}),pauseBtn=el("button",{class:"btn o",style:"display:none"},"⏸ إيقاف مؤقت للمراقبة التلقائية (نقاش / أسئلة)"),
+  qaBtn=el("button",{class:"btn",style:"display:none;background:#0891b2"},"🙋 وقت الأسئلة"),qaSec=el("select",{style:"display:none;margin-top:8px"},el("option",{value:"30"},"مدة وقت الأسئلة: 30 ثانية"),el("option",{value:"60"},"مدة وقت الأسئلة: 60 ثانية"),el("option",{value:"120"},"مدة وقت الأسئلة: دقيقتان")),
+  autoStat=el("div",{class:"mu",style:"margin:6px 0"});
+ let pref={};try{pref=JSON.parse(localStorage.getItem("musaed_cam_prefs")||"{}")||{}}catch(e){}
+ sens.value=pref.sens||"0.5";facing.value=pref.facing||"environment";mode.value=pref.mode||"suggest";talkSec.value=pref.talk||"8000";qaSec.value=pref.qa||"60";attChk.checked=pref.att!==false;recChk.checked=canRec&&pref.rec!==false;recChk.disabled=!canRec;mic.checked=!!pref.mic;
+ const savePref=()=>{try{localStorage.setItem("musaed_cam_prefs",JSON.stringify({sens:sens.value,facing:facing.value,mode:mode.value,talk:talkSec.value,qa:qaSec.value,att:attChk.checked,rec:recChk.checked,mic:mic.checked}))}catch(e){}};
+ let run=false,paused=false,qaUntil=0,autoAtt=0,autoSug=0,autoDed=0,stream=null,tracks=[],matcher=null,timer=null,sig="",ring=[],waiters=[],segT=null,rec=null,mime="";const recent={},lastAuto={};
  const getC=()=>S.classes.find(x=>x.id===sc.value)||S.classes[0];
  const stuById=id=>{const c=getC();return c.students.find(x=>x.id===id)};
  const pickMime=()=>{if(!canRec)return"";for(const m of["video/webm;codecs=vp8,opus","video/webm;codecs=vp9,opus","video/webm","video/mp4"]){try{if(MediaRecorder.isTypeSupported(m))return m}catch(e){}}return""};
@@ -959,22 +966,22 @@ function camAIV(app){
   r.onstop=()=>{const b=new Blob(chunks,{type:r.mimeType||mime||"video/webm"});if(b.size>0){ring.push(b);if(ring.length>2)ring.shift();waiters.splice(0).forEach(w=>w(b))}else waiters.splice(0);if(run)segStart()};
   r.start();rec=r;segT=setTimeout(()=>{try{if(r.state!=="inactive")r.stop()}catch(e){}},5000);
  };
- const clipFor=ev=>{
+ const clipFor=(ev,lst)=>{
   const before=ring.length?ring[ring.length-1]:null;
   waiters.push(b=>{const parts=[before,b].filter(Boolean);
-   clipPut({id:ev.id,s:ev.s,t:ev.t,parts}).then(()=>{if((S.camEvents||[]).includes(ev)){ev.clip=true;save()}else clipDel(ev.id).catch(()=>{})}).catch(()=>{})});
+   clipPut({id:ev.id,s:ev.s,t:ev.t,parts}).then(()=>{if((S[lst]||[]).includes(ev)||(S.camEvents||[]).some(x=>x.id===ev.id)){ev.clip=true;(S.camEvents||[]).forEach(x=>{if(x.id===ev.id)x.clip=true});save()}else clipDel(ev.id).catch(()=>{})}).catch(()=>{})});
  };
  const stopAll=()=>{
   run=false;clearTimeout(timer);clearTimeout(segT);
   try{if(rec&&rec.state!=="inactive")rec.stop()}catch(e){}
   if(stream)stream.getTracks().forEach(t=>t.stop());stream=null;rec=null;tracks=[];
-  wrap.style.display="none";btn.textContent="▶ تشغيل الكاميرا الذكية";chips.replaceChildren();sig="";
+  wrap.style.display="none";btn.textContent="▶ تشغيل الكاميرا الذكية";chips.replaceChildren();sig="";pauseBtn.style.display="none";qaBtn.style.display="none";qaSec.style.display="none";qaUntil=0;paused=false;
  };
  const apply=(stu,k)=>{
   closeM();const key=stu.id+"|"+k,now=Date.now();if(recent[key]&&now-recent[key]<3000)return;recent[key]=now;
   const ev=camAward(getC(),stu,k),p=S.pts[k]||0;beep(p>=0);
   toast(stu.name+": "+optLabel(k)+" ("+(p>0?"+":"")+p+") · المجموع "+total(stu),()=>camRevert(ev));
-  if(recChk.checked&&run)clipFor(ev);
+  if(recChk.checked&&run)clipFor(ev,"camEvents");
  };
  const sheet=stu=>{
   const e=faceDB()[stu.id],pos=["part","great","help","create","top"],neg=["noisy","phone","sleep"];
@@ -999,6 +1006,24 @@ function camAIV(app){
   const s2=seen.map(k=>k.label+(now-k.talk<1500?"t":"")).join(",");if(s2===sig)return;sig=s2;
   chips.replaceChildren(...seen.map(k=>{const stu=stuById(k.label);if(!stu)return"";const t=now-k.talk<1500;return el("button",{class:"fchip"+(t?" talk":""),onclick:()=>sheet(stu)},stu.name+(t?" 🗣":""))}));
  };
+ const autoRules=now=>{
+  const c=getC(),d=dateKey();
+  tracks.forEach(k=>{
+   const stu=k.label&&stuById(k.label);const dt=k.lastT?Math.min(1000,now-k.lastT):0;k.lastT=now;
+   k.tw=k.tw||[];
+   if(!stu||paused){if(!stu)k.tw=[];return}
+   if(attChk.checked&&k.lblSince&&now-k.lblSince>=3000&&!k.attDone){k.attDone=true;const cur=S.attendance[d]&&S.attendance[d][c.id]&&S.attendance[d][c.id][stu.id];if(!cur){markAtt(c,stu,d,"present");autoAtt++}}
+   if(now-k.talk<500&&dt)k.tw.push([now,dt]);
+   k.tw=k.tw.filter(e=>now-e[0]<20000);
+   const ms=k.tw.reduce((a,e)=>a+e[1],0);
+   const qa=now<qaUntil;
+   if(mode.value!=="manual"&&ms>=(qa?3000:Number(talkSec.value))&&(!lastAuto[stu.id]||now-lastAuto[stu.id]>(qa?30000:90000))){
+    lastAuto[stu.id]=now;k.tw=[];
+    if(mode.value==="deduct"){const ev=camAward(c,stu,qa?"part":"noisy",{auto:true});autoDed++;if(recChk.checked&&run)clipFor(ev,"camEvents")}
+    else{const sg={id:uid(),t:new Date().toISOString(),c:c.id,s:stu.id,n:stu.name,kind:qa?"answer":"talk",clip:false};S.camSug=Array.isArray(S.camSug)?S.camSug:[];S.camSug.push(sg);if(S.camSug.length>150)S.camSug.splice(0,S.camSug.length-150);save();autoSug++;if(recChk.checked&&run)clipFor(sg,"camSug")}
+   }
+  });
+ };
  const process=dets=>{
   const now=Date.now(),used=new Set();
   dets.forEach(d=>{
@@ -1007,14 +1032,17 @@ function camAIV(app){
    if(!t){t={label:null,cand:null,unk:0,mr:[],talk:0,cx,cy};tracks.push(t)}
    used.add(t);t.cx=cx;t.cy=cy;t.box=b;t.seen=now;
    const m=matcher.findBestMatch(d.descriptor);
-   if(m.label&&m.label!=="unknown"){t.unk=0;if(t.label!==m.label){if(t.cand&&t.cand.l===m.label){t.cand.n++;if(t.cand.n>=2){t.label=m.label;t.cand=null}}else t.cand={l:m.label,n:1}}}
-   else{t.unk++;t.cand=null;if(t.unk>=4)t.label=null}
+   if(m.label&&m.label!=="unknown"){t.unk=0;if(t.label!==m.label){if(t.cand&&t.cand.l===m.label){t.cand.n++;if(t.cand.n>=2){t.label=m.label;t.lblSince=now;t.attDone=false;t.cand=null}}else t.cand={l:m.label,n:1}}}
+   else{t.unk++;t.cand=null;if(t.unk>=4){t.label=null;t.lblSince=0}}
    t.mr.push(mouthRatio(d.landmarks));if(t.mr.length>10)t.mr.shift();
    if(t.mr.length>=6){const mean=t.mr.reduce((a,v)=>a+v,0)/t.mr.length,sd=Math.sqrt(t.mr.reduce((a,v)=>a+(v-mean)*(v-mean),0)/t.mr.length);if(sd>0.04)t.talk=now}
   });
   tracks=tracks.filter(k=>now-k.seen<1800);
+  autoRules(now);
   const known=tracks.filter(k=>k.label).length;
-  stat.textContent="يعمل — "+tracks.length+" وجه ظاهر، "+known+" متعرَّف عليه. المس وجهاً أو اسماً لتسجيل نقطة."+(recChk.checked?" ● تسجيل المقاطع مفعّل":"");
+  if(qaUntil&&now>=qaUntil){qaUntil=0}qaBtn.textContent=qaUntil?"⏹ إنهاء وقت الأسئلة ("+Math.max(0,Math.ceil((qaUntil-now)/1000))+" ث)":"🙋 وقت الأسئلة";
+  stat.textContent="يعمل — "+tracks.length+" وجه ظاهر، "+known+" متعرَّف عليه."+(qaUntil?" 🙋 وقت الأسئلة: الكلام الآن يُعدّ مشاركة.":"")+(paused?" ⏸ المراقبة التلقائية متوقفة مؤقتاً.":"")+(recChk.checked?" ● تسجيل المقاطع مفعّل":"");
+  autoStat.textContent=(attChk.checked?"تحضير تلقائي: "+autoAtt+" · ":"")+(mode.value==="suggest"?"مقترحات: "+autoSug:mode.value==="deduct"?"تسجيلات تلقائية: "+autoDed:"الوضع اليدوي");
   drawOverlay();drawChips();
  };
  const loop=async()=>{
@@ -1032,13 +1060,16 @@ function camAIV(app){
    matcher=new faceapi.FaceMatcher(arr,Number(sens.value)||0.5);
    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:facing.value,width:{ideal:1280},height:{ideal:720}},audio:!!mic.checked});
    video.srcObject=stream;await video.play();
-   run=true;wrap.style.display="block";btn.textContent="■ إيقاف الكاميرا";smartStopFn=stopAll;
+   run=true;paused=false;wrap.style.display="block";btn.textContent="■ إيقاف الكاميرا";qaBtn.style.display="block";qaSec.style.display="block";pauseBtn.style.display="block";pauseBtn.textContent="⏸ إيقاف مؤقت للمراقبة التلقائية (نقاش / أسئلة)";smartStopFn=stopAll;savePref();try{wrap.scrollIntoView({block:"start",behavior:"smooth"})}catch(e){}
    if(recChk.checked){mime=pickMime();segStart()}
    loop();
   }catch(e){stat.textContent=camErr(e);stopAll()}
   btn.disabled=false;
  };
  btn.onclick=()=>{if(run){stopAll();stat.textContent="";smartStopFn=null}else start()};
+ qaBtn.onclick=()=>{qaUntil=qaUntil?0:Date.now()+Number(qaSec.value)*1000;paused=false;pauseBtn.textContent="⏸ إيقاف مؤقت للمراقبة التلقائية (نقاش / أسئلة)"};
+ pauseBtn.onclick=()=>{paused=!paused;pauseBtn.textContent=paused?"▶ استئناف المراقبة التلقائية":"⏸ إيقاف مؤقت للمراقبة التلقائية (نقاش / أسئلة)"};
+ mode.onchange=()=>{if(mode.value!=="manual"&&canRec)recChk.checked=true;savePref()};[sens,facing,talkSec,qaSec,attChk,recChk,mic].forEach(x=>x.onchange=savePref);
  sc.onchange=()=>{if(run){stopAll();stat.textContent="تم الإيقاف عند تغيير الفصل."}};
  wrap.onclick=e=>{
   const r=cv.getBoundingClientRect(),vw=video.videoWidth,vh=video.videoHeight;if(!vw)return;
@@ -1051,11 +1082,37 @@ function camAIV(app){
  sc.addEventListener("change",fillPick);pickAny.onchange=()=>{const s=stuById(pickAny.value);pickAny.value="";if(s)sheet(s)};
  app.append(
   el("div",{class:"card"},el("h2",{},"الفصل"),sc,el("div",{class:"row",style:"gap:8px;margin-top:10px"},facing,sens),
-   el("label",{class:"row",style:"padding:8px 0;gap:8px"},recChk,"تسجيل مقطع فيديو (نحو 10 ثوانٍ) مع كل نقطة"),
-   el("label",{class:"row",style:"padding:0 0 4px;gap:8px"},mic,"تسجيل الصوت في المقطع"),btn),
-  el("div",{class:"card"},wrap,stat,chips,pickAny,
-   el("div",{class:"hint"},"المحرك يقترح الاسم ويلمّح لمن يتحرك فمه (🗣)، لكن القرار لك: لا تُمنح نقطة ولا يُخصم شيء إلا بلمستك. المقاطع تُحفظ على هذا الجهاز فقط وتُحذف تلقائياً بعد 45 يوماً.")),
-  el("div",{class:"toolbar"},el("button",{class:"btn s o",onclick:()=>go("faces")},"تسجيل وجوه الطلاب"),el("button",{class:"btn s o",onclick:()=>go("camlog")},"سجل الكاميرا والمقاطع")));
+   el("h2",{style:"margin-top:12px"},"أثناء الشرح"),mode,el("div",{style:"margin-top:8px"},talkSec),
+   el("label",{class:"row",style:"padding:8px 0;gap:8px"},attChk,"تحضير تلقائي لمن تتعرف عليه الكاميرا (حاضر)"),
+   el("label",{class:"row",style:"padding:0 0 4px;gap:8px"},recChk,"تسجيل مقطع فيديو (نحو 10 ثوانٍ) مع كل حدث"),
+   el("label",{class:"row",style:"padding:0 0 4px;gap:8px"},mic,"تسجيل الصوت في المقطع"),btn,qaBtn,qaSec,pauseBtn),
+  el("div",{class:"card"},wrap,stat,autoStat,chips,pickAny,
+   el("div",{class:"hint"},"الكاميرا ترى أن الفم يتحرك ولا تعرف إن كان إجابة أو سوالف. اضغط «وقت الأسئلة» عندما تسأل: الكلام خلاله يُعدّ مشاركة، وخارجه يُعدّ كلاماً أثناء الشرح. في وضع «اقتراحات» يبقى القرار لك بعد الحصة، وفي الوضع المباشر تُسجَّل النقاط تلقائياً ويمكن التراجع من السجل. المقاطع على هذا الجهاز فقط وتُحذف بعد 45 يوماً.")),
+  el("div",{class:"toolbar"},el("button",{class:"btn s o",onclick:()=>go("camsug")},"مقترحات للمراجعة ("+(S.camSug||[]).length+")"),el("button",{class:"btn s o",onclick:()=>go("faces")},"تسجيل وجوه الطلاب"),el("button",{class:"btn s o",onclick:()=>go("camlog")},"سجل الكاميرا والمقاطع")));
+}
+/* ---------- مقترحات الكاميرا للمراجعة ---------- */
+function camsugV(app){
+ clipPurge(45);const out=el("div");
+ const resolve=(sg,k)=>{
+  const c=S.classes.find(x=>x.id===sg.c),st=c&&c.students.find(x=>x.id===sg.s);
+  if(st&&k)camAward(c,st,k,{id:sg.id,clip:sg.clip});else if(sg.clip)clipDel(sg.id).catch(()=>{});
+  S.camSug=(S.camSug||[]).filter(x=>x.id!==sg.id);save();
+ };
+ const draw=()=>{
+  out.replaceChildren();const list=(S.camSug||[]).slice().reverse();
+  if(!list.length)return out.append(el("div",{class:"mu",style:"text-align:center;padding:24px"},"لا توجد مقترحات للمراجعة."));
+  const box=el("div",{class:"card"});
+  list.forEach(sg=>{
+   box.append(el("div",{style:"padding:10px 0;border-bottom:1px solid var(--bd)"},
+    el("div",{class:"row",style:"gap:8px"},el("div",{style:"flex:1"},el("b",{},sg.n),el("div",{class:"mu"},(sg.kind==="answer"?"تكلّم وقت الأسئلة (ربما أجاب) · ":"تكلّم لفترة مستمرة أثناء الشرح · ")+new Date(sg.t).toLocaleString("ar-SA",{dateStyle:"short",timeStyle:"short"}))),
+     sg.clip?el("button",{class:"smallbtn",onclick:()=>clipPlay({id:sg.id,n:sg.n,o:"talk",t:sg.t})},"▶ مقطع"):""),
+    el("div",{class:"row",style:"gap:8px;margin-top:8px"},
+     ...(sg.kind==="answer"?[el("button",{class:"btn s",onclick:()=>{resolve(sg,"part");draw()}},"✋ مشاركة (+"+(S.pts.part||0)+")"),el("button",{class:"btn s",style:"background:var(--rd)",onclick:()=>{resolve(sg,"noisy");draw()}},"🙊 مشاغب ("+(S.pts.noisy||0)+")")]:[el("button",{class:"btn s",style:"background:var(--rd)",onclick:()=>{resolve(sg,"noisy");draw()}},"🙊 مشاغب ("+(S.pts.noisy||0)+")"),el("button",{class:"btn s",onclick:()=>{resolve(sg,"part");draw()}},"✋ مشاركة (+"+(S.pts.part||0)+")")]),
+     el("button",{class:"btn s o",onclick:()=>{resolve(sg,null);draw()}},"تجاهل"))));
+  });
+  out.append(box,el("button",{class:"btn o",onclick:()=>{if(confirm("تجاهل جميع المقترحات وحذف مقاطعها؟")){(S.camSug||[]).slice().forEach(sg=>resolve(sg,null));draw()}}},"تجاهل الكل"));
+ };
+ app.append(el("div",{class:"card"},el("h2",{},"مقترحات الكاميرا"),el("div",{class:"mu",style:"line-height:1.8"},"الطلاب الذين رصدت الكاميرا كلامهم: أثناء الشرح (غالباً سوالف) أو وقت الأسئلة (غالباً إجابة). شاهد المقطع ثم قرر: مشاركة أو خصم أو تجاهل.")),out);draw();
 }
 /* ---------- سجل الكاميرا والمقاطع ---------- */
 async function clipPlay(ev){
@@ -1079,7 +1136,7 @@ function camlogV(app){
   list.slice(0,200).forEach(ev=>{
    const p=Number(ev.pts)||0;
    box.append(el("div",{class:"row",style:"padding:9px 0;border-bottom:1px solid var(--bd);gap:8px"},
-    el("div",{style:"flex:1;min-width:0"},el("b",{},ev.n),el("div",{class:"mu"},optLabel(ev.o)+" · "+new Date(ev.t).toLocaleString("ar-SA",{dateStyle:"short",timeStyle:"short"}))),
+    el("div",{style:"flex:1;min-width:0"},el("b",{},ev.n),el("div",{class:"mu"},(ev.auto?"🤖 ":"")+optLabel(ev.o)+" · "+new Date(ev.t).toLocaleString("ar-SA",{dateStyle:"short",timeStyle:"short"}))),
     el("span",{class:"tot"+(p<0?" neg":"")},(p>0?"+":"")+p),
     ev.clip?el("button",{class:"smallbtn",onclick:()=>clipPlay(ev)},"▶ مقطع"):"",
     el("button",{class:"del",title:"حذف السجل وإلغاء نقاطه",onclick:()=>{if(confirm("حذف هذا السجل مع مقطعه وإلغاء نقطته؟")){camRevert(ev);draw()}}},ic("trash",18))));
@@ -1093,7 +1150,7 @@ function camlogV(app){
 }
 
 function space(app){
- app.append(menuRow("الحضور اليومي","تسجيل حضور وغياب وتأخر الطلاب","check","#0d9488","attendance"),menuRow("التحضير بالباركود","امسح بطاقة الطالب بالكاميرا أو بقارئ باركود","check","#0891b2","scan"),menuRow("الكاميرا الذكية","تعرّف على الطلاب بوجوههم وسجّل المشاركة والسلوك بلمسة مع مقطع فيديو","check","#7c3aed","cam"),menuRow("تسجيل وجوه الطلاب","كل طالب يصوّر وجهه مرة واحدة (يُحفظ على الجهاز فقط)","check","#a855f7","faces"),menuRow("سجل الكاميرا والمقاطع","راجع الأحداث والمقاطع وألغِ أي نقطة","check","#6d28d9","camlog"),menuRow("تقارير الأداء","ملخص الحضور والنقاط لكل طالب","space","#6366f1","reports"),menuRow("واجباتي","الاختبارات وأوراق العمل المحفوظة","doc","#3b82f6","tests"),menuRow("تصحيح الأوراق","اختر الاختبار وعلّم الإجابات الصحيحة","check","#ec4899","grade"),menuRow("طباعة الكشف","اختر الفصل والأعمدة","print","#14b8a6","kashf"),menuRow("التصحيح الضوئي","طباعة ورقة إجابة ثم تصويرها بالهاتف أو رفعها","check","#0f766e","omr"),menuRow("الشهادات الذكية","إنشاء شهادة تقدير باسم الطالب قابلة للطباعة","doc","#b7791f","certs"),menuRow("بطاقات الطلاب","تصميم وطباعة بطاقات الفصل دفعة واحدة","space","#475569","cards"),menuRow("إضافات الدوائر","زيادة أو تقليل دوائر المتابعة لكل طالب","plus","#0d9488","circles"),menuRow("مركز أدوات المعلم","50 أداة لإدارة الفصل والدرجات والحضور والتقارير","space","#16834a","tools"));
+ app.append(menuRow("الحضور اليومي","تسجيل حضور وغياب وتأخر الطلاب","check","#0d9488","attendance"),menuRow("التحضير بالباركود","امسح بطاقة الطالب بالكاميرا أو بقارئ باركود","check","#0891b2","scan"),menuRow("الكاميرا الذكية","تعرّف على الطلاب بوجوههم وسجّل المشاركة والسلوك بلمسة مع مقطع فيديو","check","#7c3aed","cam"),menuRow("تسجيل وجوه الطلاب","كل طالب يصوّر وجهه مرة واحدة (يُحفظ على الجهاز فقط)","check","#a855f7","faces"),menuRow("مقترحات الكاميرا","راجع بعد الحصة من رصدته الكاميرا ("+(S.camSug||[]).length+")","check","#8b5cf6","camsug"),menuRow("سجل الكاميرا والمقاطع","راجع الأحداث والمقاطع وألغِ أي نقطة","check","#6d28d9","camlog"),menuRow("تقارير الأداء","ملخص الحضور والنقاط لكل طالب","space","#6366f1","reports"),menuRow("واجباتي","الاختبارات وأوراق العمل المحفوظة","doc","#3b82f6","tests"),menuRow("تصحيح الأوراق","اختر الاختبار وعلّم الإجابات الصحيحة","check","#ec4899","grade"),menuRow("طباعة الكشف","اختر الفصل والأعمدة","print","#14b8a6","kashf"),menuRow("التصحيح الضوئي","طباعة ورقة إجابة ثم تصويرها بالهاتف أو رفعها","check","#0f766e","omr"),menuRow("الشهادات الذكية","إنشاء شهادة تقدير باسم الطالب قابلة للطباعة","doc","#b7791f","certs"),menuRow("بطاقات الطلاب","تصميم وطباعة بطاقات الفصل دفعة واحدة","space","#475569","cards"),menuRow("إضافات الدوائر","زيادة أو تقليل دوائر المتابعة لكل طالب","plus","#0d9488","circles"),menuRow("مركز أدوات المعلم","50 أداة لإدارة الفصل والدرجات والحضور والتقارير","space","#16834a","tools"));
 }
 const printBox=n=>el("div",{id:"pa"},n);
 function testsV(app){
@@ -1432,6 +1489,7 @@ const _sp=space;space=function(app){_sp(app);app.append(el("div",{class:"sec"},"
  menuRow("السبورة البيضاء","اكتب وارسم بالقلم واحفظ الصورة","plus","#0ea5e9","board"),
  menuRow("تحضير الدروس","خطط الدروس وأهدافها وأنشطتها مع مؤقت للحصة","doc","#f59e0b","lessons"),
  menuRow("العروض التقديمية","شرائح تقدّمها بملء الشاشة أو تحفظها PDF","space","#8b5cf6","slides"),
+ menuRow("شرح الدرس","اكتب الشرح ويشرحه النظام بالصوت والرسم","plus","#14b8a6","explain"),
  menuRow("ملفات PDF","اعرض ملف PDF أو احفظ أي ورقة كـ PDF","doc","#ef4444","pdf"))};
 const _tv=testsV;testsV=function(app){_tv(app);app.append(el("button",{class:"btn o",onclick:addBank},"+ إضافة اختبارات جاهزة (جمع، طرح، ضرب، قسمة)"))};
 function addBank(){const R=n=>Math.floor(Math.random()*n),ops={"جمع":(a,b)=>[a+" + "+b,a+b],"طرح":(a,b)=>[(a+b)+" − "+b,a],"ضرب":(a,b)=>[a+" × "+b,a*b],"قسمة":(a,b)=>[(a*b)+" ÷ "+b,a]};
@@ -1570,6 +1628,187 @@ function gCard(){const st=el("div",{class:"mu",style:"margin-top:6px"},S.gEmail?
   el("button",{class:"btn o",onclick:run(async()=>{await gSave();gStat("تم الحفظ "+new Date().toLocaleTimeString("ar-SA"))})},"حفظ التقدم الآن"),
   el("button",{class:"btn o",onclick:run(async()=>{const f=await gFile();if(!f)return alert("لا توجد نسخة محفوظة");if(!confirm("استبدال بيانات هذا الجهاز بنسخة Google؟"))return;await gDown(f);save();root("home")})},"استعادة من Google"),
   el("label",{class:"row",style:"padding:8px 0"},auto,"حفظ تلقائي بعد كل تعديل"),st,el("button",{class:"btn o",style:"margin-top:10px;color:var(--rd)",onclick:()=>{if(!confirm("تسجيل الخروج؟ سيتم حفظ آخر تعديلاتك أولاً إن أمكن."))return;(async()=>{try{if(GTOK&&Date.now()<GEXP)await gSave()}catch(e){}GTOK=null;GEXP=0;S.gEmail="";S.gAuto=false;save();render()})()}},"تسجيل الخروج"))}
+
+/* ===== أداة شرح الدرس (صوت + رسم، بدون ذكاء اصطناعي) ===== */
+Object.assign(TITLES,{explain:"شرح الدرس"});
+const EX_HELP="كل خطوة تبدأ بسطر عنوان يبدأ بـ #\nثم أسطر الشرح (كل سطر يُقرأ بصوت عالٍ ويُكتب على السبورة)\nافصل بين الخطوات بسطر فارغ\nلرسم شكل اكتب اسمه بين قوسين داخل السطر مثل [دائرة] [مثلث] [مربع] [نجمة] [سهم] [شمس] [قلب] [منزل] [شجرة] [وجه] [كتاب] [صح] [خطأ]\nأي كلمة أخرى بين قوسين تُرسم داخل إطار";
+const EX_SAMPLE="# أنواع الأشكال [مثلث] [مربع]\n- المثلث له ثلاثة أضلاع وثلاث زوايا\n- المربع له أربعة أضلاع متساوية\n\n# الدائرة [دائرة]\n- الدائرة ليس لها زوايا\n- كل نقطة عليها بعدها ثابت عن [المركز]\n\n# الخلاصة [صح]\n- الأشكال حولنا في كل مكان [منزل] [شجرة]";
+const exCirc=(r,n=48)=>Array.from({length:n+1},(_,i)=>[r*Math.cos(i/n*6.2832),r*Math.sin(i/n*6.2832)]);
+const EXS={"دائرة":()=>[exCirc(1)],"مربع":()=>[[[-1,-1],[1,-1],[1,1],[-1,1],[-1,-1]]],"مثلث":()=>[[[0,-1],[1,.8],[-1,.8],[0,-1]]],
+"نجمة":()=>[Array.from({length:11},(_,i)=>{const r=i%2?.45:1,a=-1.5708+i/10*6.2832;return[r*Math.cos(a),r*Math.sin(a)]})],
+"سهم":()=>[[[-1.2,0],[1.2,0]],[[.6,-.55],[1.2,0],[.6,.55]]],
+"شمس":()=>[exCirc(.5),...Array.from({length:8},(_,i)=>{const a=i/8*6.2832;return[[.75*Math.cos(a),.75*Math.sin(a)],[1.1*Math.cos(a),1.1*Math.sin(a)]]})],
+"قلب":()=>[Array.from({length:41},(_,i)=>{const t=i/40*6.2832;return[16*Math.pow(Math.sin(t),3)/17,-(13*Math.cos(t)-5*Math.cos(2*t)-2*Math.cos(3*t)-Math.cos(4*t))/17]})],
+"منزل":()=>[[[-1,.9],[-1,-.2],[0,-1],[1,-.2],[1,.9],[-1,.9]],[[-.25,.9],[-.25,.3],[.25,.3],[.25,.9]]],
+"شجرة":()=>[[[0,1],[0,.3]],[[-.8,.3],[0,-.5],[.8,.3],[-.8,.3]],[[-.6,-.3],[0,-1],[.6,-.3]]],
+"وجه":()=>[exCirc(1),exCirc(.12,12).map(p=>[p[0]-.4,p[1]-.3]),exCirc(.12,12).map(p=>[p[0]+.4,p[1]-.3]),Array.from({length:13},(_,i)=>[-.55+i/12*1.1,.25+.3*Math.sin(i/12*3.1416)])],
+"كتاب":()=>[[[0,-.6],[-1.1,-.8],[-1.1,.7],[0,.9],[0,-.6]],[[0,-.6],[1.1,-.8],[1.1,.7],[0,.9]]],
+"صح":()=>[[[-1,0],[-.3,.7],[1,-.8]]],"خطأ":()=>[[[-.8,-.8],[.8,.8]],[[.8,-.8],[-.8,.8]]]};
+EXS["صحيح"]=EXS["صح"];EXS["غلط"]=EXS["خطأ"];EXS["مستطيل"]=()=>[[[-1.4,-.8],[1.4,-.8],[1.4,.8],[-1.4,.8],[-1.4,-.8]]];
+function exParse(t){return String(t).split(/\n\s*\n/).map(b=>{const L=b.split("\n").map(x=>x.trim()).filter(Boolean);let title="",tsh=[];if(L[0]&&/^#/.test(L[0]))title=L.shift().replace(/^#+\s*/,"");const pull=(x,sh)=>x.replace(/\[([^\]]+)\]/g,(m,k)=>{sh.push(k.trim());return EXS[k.trim()]?"":k.trim()}).trim();title=pull(title,tsh);return{title,tsh,lines:L.map(l=>{const sh=[],txt=pull(l.replace(/^[-•*]\s*/,""),sh);return{txt,sh}})}}).filter(s=>s.title||s.lines.length)}
+const exLesson=l=>{const g=x=>String(x||"").split(/\n+/).map(y=>y.trim()).filter(Boolean).map(y=>"- "+y).join("\n");return[["# "+l.title,l.subject?"- "+l.subject:""],["# الأهداف",g(l.goals)],["# التمهيد",g(l.intro)],["# الشرح",g(l.acts)],["# التقويم",g(l.eval)]].filter(b=>b[1]).map(b=>b.join("\n")).join("\n\n")};
+function explainV(app){
+ S.explains=Array.isArray(S.explains)?S.explains:[];S.lessons=Array.isArray(S.lessons)?S.lessons:[];
+ const cur=S.explains.find(x=>x.id===arg)||{id:uid(),title:"",text:""};
+ const ti=el("input",{placeholder:"عنوان الشرح",value:cur.title,oninput:()=>{cur.title=ti.value}}),tx=el("textarea",{style:"min-height:230px;line-height:1.9",placeholder:EX_HELP,oninput:()=>{cur.text=tx.value}});tx.value=cur.text;
+ const imp=el("select",{onchange:()=>{const l=S.lessons.find(x=>x.id===imp.value);if(l){ti.value=cur.title=l.title;tx.value=cur.text=exLesson(l)}imp.value=""}},el("option",{value:""},"استيراد من أحد دروسي..."),...S.lessons.map(l=>el("option",{value:l.id},l.title)));
+ const keep=()=>{if(!tx.value.trim()){alert("اكتب الشرح أولاً");return false}cur.text=tx.value;cur.title=ti.value.trim()||"شرح بدون عنوان";if(!S.explains.some(x=>x.id===cur.id))S.explains.push(cur);save();return true};
+ app.append(el("div",{class:"card"},el("h2",{},"اكتب شرح الدرس"),ti,imp,tx,el("div",{class:"toolbar",style:"margin-top:8px"},el("button",{class:"btn s",onclick:()=>{if(keep())explainPlay(cur)}},"▶ ابدأ الشرح صوتاً ورسماً"),el("button",{class:"btn s o",onclick:()=>{if(keep())go("explain",null,false)}},"حفظ"),el("button",{class:"btn s o",onclick:()=>{tx.value=cur.text=EX_SAMPLE;if(!ti.value)ti.value=cur.title="مثال الأشكال"}},"مثال جاهز")),el("div",{class:"mu",style:"margin-top:6px"},"النظام يقرأ ما تكتبه بصوت عربي ويرسمه على السبورة خطوة بخطوة، بدون ذكاء اصطناعي.")),el("div",{class:"sec"},"شروحاتي المحفوظة ("+S.explains.length+")"));
+ S.explains.slice().reverse().forEach(x=>app.append(el("div",{class:"card ls",onclick:()=>go("explain",x.id,false)},el("div",{style:"flex:1"},el("b",{},x.title),el("div",{class:"mu"},exParse(x.text).length+" خطوة")),el("button",{class:"btn s",onclick:e=>{e.stopPropagation();explainPlay(x)}},"▶"),el("button",{class:"del",onclick:e=>{e.stopPropagation();if(confirm("حذف الشرح؟")){S.explains=S.explains.filter(z=>z!==x);save();go("explain",null,false)}}},ic("trash",18)))));
+}
+function explainPlay(ex){
+ const steps=exParse(ex.text);if(!steps.length)return;const W=960,H=540,COL=["#e5484d","#2563eb","#12a150","#7c3aed","#f59e0b"],SS=window.speechSynthesis;
+ let run=0,paused=false,rate=.9,voice=null,si=0,pen="#111",penOn=true;
+ const ov=el("div",{style:"position:fixed;inset:0;z-index:70;background:#0f172a;display:flex;flex-direction:column;align-items:center;justify-content:center"}),cv=el("canvas",{width:W,height:H,style:"width:100%;max-height:calc(100vh - 64px);aspect-ratio:16/9;background:#fff;touch-action:none"}),cx=cv.getContext("2d"),st=el("span",{style:"color:#fff;font-weight:700"});
+ const voices=()=>SS?SS.getVoices().filter(v=>/^ar/i.test(v.lang)):[],vs=el("select",{style:"max-width:150px;margin:0",onchange:()=>{voice=voices().find(v=>v.name===vs.value)||null}});
+ const fillV=()=>{vs.replaceChildren(el("option",{value:""},"الصوت الافتراضي"),...voices().map(v=>el("option",{value:v.name},v.name)))};fillV();if(SS)SS.onvoiceschanged=fillV;
+ const tick=(ms,fn,tok)=>new Promise(r=>{let t=0,l=performance.now();const f=n=>{if(tok!==run)return r();if(!paused)t+=n-l;l=n;fn(Math.min(1,t/ms));if(t>=ms)r();else requestAnimationFrame(f)};requestAnimationFrame(f)});
+ const say=(t,tok)=>new Promise(r=>{if(!t||!SS||tok!==run)return r();const u=new SpeechSynthesisUtterance(t);u.lang="ar-SA";u.rate=rate;if(voice){u.voice=voice;u.lang=voice.lang}u.onend=u.onerror=()=>r();SS.speak(u)});
+ const font=n=>"bold "+n+"px Tahoma,Arial";
+ const wrap=(t,fs,mw)=>{cx.font=font(fs);const out=[];let c="";t.split(/\s+/).forEach(w=>{const x=c?c+" "+w:w;if(cx.measureText(x).width>mw&&c){out.push(c);c=w}else c=x});if(c)out.push(c);return out};
+ const reveal=(txt,x,y,color,p)=>{const w=cx.measureText(txt).width;cx.save();cx.beginPath();cx.rect(x-w*p-4,y-40,w*p+8,56);cx.clip();cx.fillStyle=color;cx.textAlign="right";cx.direction="rtl";cx.fillText(txt,x,y);cx.restore()};
+ const drawShape=(polys,cxp,cyp,r,color,p)=>{const pts=polys.map(a=>a.map(q=>[cxp+q[0]*r,cyp+q[1]*r])),len=pts.map(a=>a.reduce((s,q,i)=>i?s+Math.hypot(q[0]-a[i-1][0],q[1]-a[i-1][1]):0,0)),tot=len.reduce((a,b)=>a+b,0)||1;let rem=p*tot;cx.strokeStyle=color;cx.lineWidth=6;cx.lineCap=cx.lineJoin="round";pts.forEach((a,k)=>{if(rem<=0)return;cx.beginPath();cx.moveTo(a[0][0],a[0][1]);let left=Math.min(rem,len[k]);for(let i=1;i<a.length&&left>0;i++){const d=Math.hypot(a[i][0]-a[i-1][0],a[i][1]-a[i-1][1]);if(d<=left){cx.lineTo(a[i][0],a[i][1]);left-=d}else{const f=left/d;cx.lineTo(a[i-1][0]+(a[i][0]-a[i-1][0])*f,a[i-1][1]+(a[i][1]-a[i-1][1])*f);left=0}}cx.stroke();rem-=len[k]})};
+ const shapeAt=(name,k,color,p)=>{const cxp=150+(k%2)*180,cyp=190+Math.floor(k/6*0+(k%6>>1))*140,f=EXS[name];if(f)drawShape(f(),cxp,cyp,52,color,p)};
+ const doStep=async(i,tok)=>{const s=steps[i];cx.fillStyle="#fff";cx.fillRect(0,0,W,H);cx.lineWidth=1;st.textContent="الخطوة "+(i+1)+" / "+steps.length;
+  const allSh=[...s.tsh];s.lines.forEach(l=>allSh.push(...l.sh));const hasFig=allSh.length>0,xr=W-70,mw=hasFig?500:820;let k=0;
+  if(s.title||s.tsh.length){const tms=Math.max(700,s.title.length*80/rate);cx.font=font(42);const w=cx.measureText(s.title).width;await Promise.all([say(s.title,tok),tick(tms,p=>{cx.font=font(42);reveal(s.title,xr,80,"#0c7a3b",p);cx.strokeStyle="#0c7a3b";cx.lineWidth=4;cx.beginPath();cx.moveTo(xr,92);cx.lineTo(xr-w*p,92);cx.stroke()},tok),...s.tsh.map(n=>{const kk=k++;return tick(900,p=>shapeAt(n,kk,"#0c7a3b",p),tok)})])}
+  let fs=30,rows;for(;fs>=18;fs-=2){rows=s.lines.map(l=>wrap(l.txt,fs,mw));if(rows.reduce((a,r)=>a+Math.max(1,r.length),0)*fs*1.55<H-190)break}
+  let y=150;for(let j=0;j<s.lines.length&&tok===run;j++){const l=s.lines[j],R=rows[j],color=COL[j%COL.length],tot=Math.max(1,l.txt.length),tms=Math.max(800,tot*75/rate),y0=y;
+   const job=[say(l.txt,tok),tick(tms,p=>{let done=p*tot,yy=y0;cx.font=font(fs);R.forEach((r,q)=>{const part=Math.max(0,Math.min(1,done/Math.max(1,r.length)));done-=r.length;if(part>0)reveal(r,xr,yy+q*fs*1.55,color,part)});cx.fillStyle=color;cx.beginPath();cx.arc(W-40,y0-fs*.35,7,0,6.3);cx.fill()},tok)];
+   l.sh.forEach(n=>{const kk=k++;job.push(tick(900,p=>shapeAt(n,kk,color,p),tok))});await Promise.all(job);y+=Math.max(1,R.length)*fs*1.55+8;await tick(350,()=>{},tok)}};
+ const play=async n=>{const tok=++run;if(SS)SS.cancel();paused=false;for(si=n;si<steps.length&&tok===run;si++)await doStep(si,tok);if(tok===run)st.textContent="انتهى الشرح ✓"};
+ const close=()=>{run++;if(SS)SS.cancel();document.removeEventListener("keydown",key);ov.remove();if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen()};
+ const key=e=>{if(e.key==="Escape")close()};
+ const b=(t,f)=>el("button",{class:"smallbtn",onclick:f},t);
+ const sp=el("select",{style:"width:90px;margin:0",onchange:()=>{rate=+sp.value}},el("option",{value:.7},"بطيء"),el("option",{value:.9,selected:""},"عادي"),el("option",{value:1.15},"سريع"));
+ const pb=b("✏ قلم",()=>{const c=["#111","#e5484d","#2563eb","#12a150"];pen=c[(c.indexOf(pen)+1)%c.length];pb.style.color=pen;penOn=true});
+ const bar=el("div",{style:"display:flex;gap:6px;flex-wrap:wrap;align-items:center;justify-content:center;padding:8px;width:100%"},b("⏮",()=>play(Math.max(0,si-1))),b("⏯",()=>{paused=!paused;if(SS)paused?SS.pause():SS.resume()}),b("⏭",()=>play(Math.min(steps.length-1,si+1))),b("↻ من البداية",()=>play(0)),pb,sp,vs,st,b("✕ إغلاق",close));
+ let dn=false,lx=0,ly=0;const pp=e=>{const r=cv.getBoundingClientRect();return[(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*H/r.height]};
+ cv.onpointerdown=e=>{if(!penOn)return;dn=true;cv.setPointerCapture(e.pointerId);[lx,ly]=pp(e)};cv.onpointermove=e=>{if(!dn)return;const q=pp(e);cx.strokeStyle=pen;cx.lineWidth=5;cx.lineCap="round";cx.beginPath();cx.moveTo(lx,ly);cx.lineTo(q[0],q[1]);cx.stroke();[lx,ly]=q};cv.onpointerup=cv.onpointercancel=()=>{dn=false};
+ ov.append(cv,bar);document.addEventListener("keydown",key);document.body.append(ov);try{ov.requestFullscreen&&ov.requestFullscreen()}catch(e){}
+ if(SS&&!voices().length)setTimeout(()=>{if(!voices().length)toast("لم أجد صوتاً عربياً في جهازك. أضف الصوت العربي من إعدادات الجهاز ليُقرأ الشرح بالعربية")},1200);
+ play(0);
+}
+
+/* ===== مكتبة دروس جاهزة + بحث باسم الدرس (بدون ذكاء اصطناعي) ===== */
+const EXLIB=[
+["أركان الإسلام","اركان الاسلام شهادتان صلاه زكاه صوم حج",`# أركان الإسلام [نجمة]
+- أركان الإسلام خمسة
+- الأول الشهادتان: أشهد أن لا إله إلا الله وأن محمداً رسول الله
+- الثاني إقامة الصلاة، نصلي خمس صلوات في اليوم والليلة
+
+# بقية الأركان [كتاب]
+- الثالث إيتاء الزكاة لمن يستحقها
+- الرابع صوم شهر رمضان
+- الخامس حج بيت الله الحرام لمن استطاع إليه سبيلاً [صح]`],
+["الوضوء","وضوء طهاره صلاه",`# الوضوء [دائرة]
+- الوضوء طهارة نحتاجها قبل الصلاة
+- نبدأ بالنية وقول بسم الله
+- نغسل الكفين ثم نتمضمض ونستنشق ثم نغسل الوجه
+
+# تتمة الوضوء [صح]
+- نغسل اليدين إلى المرفقين ثم نمسح الرأس والأذنين
+- نغسل القدمين إلى الكعبين
+- ثم نقول الشهادتين بعد الانتهاء`],
+["الأشكال الهندسية","اشكال هندسيه مثلث مربع دائره مستطيل",`# الأشكال الهندسية [مثلث] [مربع]
+- المثلث له ثلاثة أضلاع وثلاث زوايا
+- المربع له أربعة أضلاع متساوية وأربع زوايا قائمة
+
+# أشكال أخرى [دائرة] [مستطيل]
+- الدائرة ليس لها أضلاع ولا زوايا
+- المستطيل أضلاعه المتقابلة متساوية
+- نجد الأشكال حولنا في [منزل] وفي [كتاب]`],
+["الجمع","جمع اضافه مجموع حساب",`# معنى الجمع [نجمة] [نجمة] [نجمة]
+- الجمع يعني ضم عددين أو أكثر للحصول على المجموع
+- عندنا ثلاث نجوم
+- نضيف إليها نجمتين [نجمة] [نجمة]
+- فيصبح المجموع خمس نجوم، ثلاثة زائد اثنين يساوي خمسة [صح]`],
+["الضرب","ضرب جدول مضاعفات حساب",`# معنى الضرب [مربع] [مربع] [مربع]
+- الضرب هو جمع العدد نفسه عدة مرات
+- ثلاثة في أربعة تعني أربعة زائد أربعة زائد أربعة
+- والناتج اثنا عشر
+
+# قاعدة مفيدة [صح]
+- ترتيب الأعداد في الضرب لا يغير الناتج
+- ثلاثة في أربعة يساوي أربعة في ثلاثة`],
+["الكسور","كسور نصف ربع جزء بسط مقام",`# معنى الكسر [دائرة]
+- الكسر يمثل جزءاً من كل
+- إذا قسمنا الدائرة إلى جزأين متساويين فكل جزء هو النصف
+- وإذا قسمناها إلى أربعة أجزاء فكل جزء هو الربع
+
+# البسط والمقام [صح]
+- البسط هو العدد الأعلى والمقام هو العدد الأسفل
+- المقام يدل على عدد الأجزاء المتساوية`],
+["المحيط والمساحة","محيط مساحه طول عرض",`# المحيط [مربع]
+- المحيط هو طول الحدود حول الشكل
+- محيط المربع يساوي طول الضلع مضروباً في أربعة
+
+# المساحة [مستطيل]
+- المساحة هي المكان الذي يغطيه الشكل
+- مساحة المستطيل تساوي الطول في العرض`],
+["دورة الماء","دوره الماء تبخر تكاثف مطر سحب امطار",`# دورة الماء [شمس]
+- تسخن الشمس ماء البحار فيتبخر ويصعد إلى الجو
+- في الأعلى يبرد بخار الماء فيتكاثف ويكوّن السحب [سهم]
+
+# هطول الأمطار [سهم]
+- عندما تثقل السحب ينزل الماء مطراً
+- يجري الماء إلى الأنهار والبحار وتبدأ الدورة من جديد [صح]`],
+["أجزاء النبات","نبات جذر ساق ورقه زهره اوراق",`# أجزاء النبات [شجرة]
+- الجذر يثبت النبات في التربة ويمتص الماء والأملاح
+- الساق تحمل النبات وتنقل الماء إلى الأوراق
+
+# الأوراق والأزهار [شمس]
+- الأوراق تصنع غذاء النبات بوجود ضوء الشمس
+- الأزهار تنتج الثمار والبذور`],
+["حالات المادة","مادة صلبه سائله غازيه حالات",`# حالات المادة [كتاب]
+- للمادة ثلاث حالات: صلبة وسائلة وغازية
+- المادة الصلبة لها شكل ثابت مثل الكتاب
+
+# السائل والغاز [دائرة]
+- السائل يأخذ شكل الإناء مثل الماء
+- الغاز ينتشر ويملأ المكان مثل الهواء
+- الحرارة تغير حالة المادة، فالجليد يذوب إذا سخّناه [شمس]`],
+["المجموعة الشمسية","كواكب شمس مجموعه شمسيه فلك ارض قمر",`# المجموعة الشمسية [شمس]
+- الشمس نجم في مركز مجموعتنا الشمسية
+- تدور حولها ثمانية كواكب منها الأرض [دائرة]
+
+# الأرض والقمر [نجمة]
+- الأرض هي الكوكب الذي نعيش عليه
+- القمر تابع يدور حول الأرض`],
+["الفصول الأربعة","فصول سنه صيف شتاء ربيع خريف",`# الفصول الأربعة [شمس]
+- السنة فيها أربعة فصول: الربيع والصيف والخريف والشتاء
+- الصيف حار والشمس فيه قوية
+
+# بقية الفصول [شجرة]
+- في الخريف تتساقط أوراق الأشجار
+- الشتاء بارد وتكثر فيه الأمطار
+- الربيع معتدل وتتفتح فيه الأزهار [قلب]`],
+["الحواس الخمس","حواس سمع بصر شم ذوق لمس",`# الحواس الخمس [وجه]
+- لدينا خمس حواس: البصر والسمع والشم والذوق واللمس
+- نرى بالعينين ونسمع بالأذنين
+- نشم بالأنف ونتذوق باللسان ونلمس بالجلد [صح]`],
+["الاسم والفعل والحرف","اسم فعل حرف اقسام الكلام نحو",`# أقسام الكلام [كتاب]
+- الكلام في اللغة العربية ثلاثة أقسام: اسم وفعل وحرف
+- الاسم يدل على إنسان أو حيوان أو نبات أو جماد مثل: محمد وقطة وشجرة
+
+# الفعل والحرف [صح]
+- الفعل يدل على حدث في زمن مثل: كتب ويكتب واكتب
+- الحرف لا يظهر معناه إلا مع غيره مثل: في ومن وإلى`]];
+const exNz=t=>String(t||"").replace(/[\u064B-\u0652\u0640]/g,"").replace(/[أإآ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").replace(/(^|\s)ال/g,"$1").toLowerCase().trim();
+const EXSTOP=["درس","شرح","اشرح","عن","لي","ما","هي","هو","في","من","على","و"];
+function exFind(q){const w=exNz(q).split(/\s+/).filter(x=>x&&!EXSTOP.includes(x));if(!w.length)return[];
+ const pool=[...S.explains.map(x=>({t:x.title,k:x.title,text:x.text,src:"شرحي المحفوظ"})),...S.lessons.map(l=>({t:l.title,k:l.title,text:exLesson(l),src:"من دروسي"})),...EXLIB.map(([t,k,text])=>({t,k:t+" "+k,text,src:"درس جاهز"}))];
+ return pool.map(p=>{const kk=exNz(p.k);return{p,sc:w.filter(x=>kk.includes(x)).length}}).filter(r=>r.sc>0).sort((a,b)=>b.sc-a.sc).map(r=>r.p)}
+const _ev=explainV;explainV=function(app){
+ S.explains=Array.isArray(S.explains)?S.explains:[];S.lessons=Array.isArray(S.lessons)?S.lessons:[];
+ const res=el("div"),run=p=>explainPlay({id:uid(),title:p.t,text:p.text}),copy=(t,text)=>{const ex={id:uid(),title:t,text};S.explains.push(ex);save();go("explain",ex.id,false)};
+ const q=el("input",{placeholder:"اكتب اسم الدرس مثل: دورة الماء",onkeydown:e=>{if(e.key==="Enter")find()}});
+ const find=()=>{res.replaceChildren();const t=q.value.trim();if(!t)return;const r=exFind(t);
+  if(r.length===1){run(r[0]);return}
+  if(!r.length){res.append(el("div",{class:"mu",style:"margin:8px 0"},"ما لقيت هذا الدرس في المكتبة. اختر من الدروس الجاهزة تحت، أو أنشئ هيكلاً تكتب محتواه بنفسك."),el("button",{class:"btn s o",onclick:()=>copy(t,"# "+t+"\n- تعريف الدرس\n- المثال الأول\n\n# الخلاصة [صح]\n- ما تعلمناه في هذا الدرس")},"إنشاء هيكل لدرس «"+t+"»"));return}
+  r.slice(0,6).forEach(p=>res.append(el("div",{class:"card ls",onclick:()=>run(p)},el("div",{style:"flex:1"},el("b",{},p.t),el("div",{class:"mu"},p.src)),el("button",{class:"btn s o",onclick:e=>{e.stopPropagation();copy(p.t,p.text)}},"تعديل"),el("button",{class:"btn s"},"▶ اشرح"))))};
+ app.append(el("div",{class:"card"},el("h2",{},"اكتب اسم الدرس فقط"),el("div",{class:"row"},q,el("button",{class:"btn s",onclick:find},"اشرح")),res,el("div",{class:"mu",style:"margin:10px 0 4px"},"دروس جاهزة (اضغط للشرح الفوري):"),el("div",{class:"toolbar"},...EXLIB.map(([t,k,text])=>el("button",{class:"smallbtn",onclick:()=>run({t,text})},t)))));
+ _ev(app)};
 
 const pctOf=x=>(Number(x.exam)||0)/(Number(x.examMax)||100)*100;
 function ensureOpt(id,name,pts){if(!S.custom.some(o=>o[0]===id)){S.custom.push([id,name,""]);S.pts[id]=pts;syncOptions()}return OPTS.find(o=>o[0]===id)}
