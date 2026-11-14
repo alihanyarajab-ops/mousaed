@@ -8,16 +8,16 @@
 
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
 <style>
-:root{--g:#12a150;--gd:#0c7a3b;--gs:#e5f6ec;--bg:#f3f5f7;--card:#fff;--tx:#1b2430;--mu:#7a8794;--bd:#e6eaee;--rd:#e5484d;--rs:#fdeaea;--am:#f5a524;--as:#fff4dc;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
-@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1418;--card:#182027;--tx:#e9eef2;--mu:#8e9ba7;--bd:#26313a;--gs:#12301f;--rs:#3a1a1c;--as:#3a2e12}}
-:root[data-theme="dark"]{--bg:#0f1418;--card:#182027;--tx:#e9eef2;--mu:#8e9ba7;--bd:#26313a;--gs:#12301f;--rs:#3a1a1c;--as:#3a2e12}
+:root{--g:#12a150;--gd:#0c7a3b;--gs:#e5f6ec;--bg:#f3f5f7;--card:#fff;--tx:#1b2430;--mu:#7a8794;--bd:#e6eaee;--rd:#e5484d;--rs:#fdeaea;--am:#f5a524;--as:#fff4dc;--hb:#fff;--hc:#1b2430;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1418;--card:#182027;--tx:#e9eef2;--mu:#8e9ba7;--bd:#26313a;--gs:#12301f;--rs:#3a1a1c;--as:#3a2e12;--hb:#111;--hc:#fff}}
+:root[data-theme="dark"]{--hb:#111;--hc:#fff;--bg:#0f1418;--card:#182027;--tx:#e9eef2;--mu:#8e9ba7;--bd:#26313a;--gs:#12301f;--rs:#3a1a1c;--as:#3a2e12}
 html{scroll-padding-top:env(safe-area-inset-top,0px)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--tx);font-family:Tajawal,Tahoma,sans-serif;font-size:16px}
-header{background:#111;color:#fff;height:56px;padding:0 14px;display:flex;align-items:center;gap:10px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
+header{background:var(--hb);color:var(--hc);border-bottom:1px solid var(--bd);height:56px;padding:0 14px;display:flex;align-items:center;gap:10px;position:sticky;top:env(safe-area-inset-top,0px);z-index:5}
 header h1{margin:0;font-size:19px;font-weight:800;flex:1}
-header button{background:none;border:0;color:#fff;display:grid;place-items:center;padding:6px;cursor:pointer}
-body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:#111;z-index:10}
+header button{background:none;border:0;color:var(--hc);display:grid;place-items:center;padding:6px;cursor:pointer}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--hb);z-index:10}
 .chat{display:grid;gap:8px;margin-bottom:12px}
 .bub{background:var(--card);border:1px solid var(--bd);border-radius:14px 14px 4px 14px;padding:10px 13px;max-width:88%;justify-self:end;line-height:1.8;white-space:pre-wrap;animation:rise .3s both}
 .bub.me{background:var(--g);color:#fff;border-color:var(--g);justify-self:start;border-radius:14px 14px 14px 4px}
@@ -1814,6 +1814,111 @@ const pctOf=x=>(Number(x.exam)||0)/(Number(x.examMax)||100)*100;
 function ensureOpt(id,name,pts){if(!S.custom.some(o=>o[0]===id)){S.custom.push([id,name,""]);S.pts[id]=pts;syncOptions()}return OPTS.find(o=>o[0]===id)}
 function giveAll(c,o,n){let d=0;c.students.forEach(x=>{x.marks=x.marks||[];const i=x.marks.findIndex(m=>!m);if(i<0)return;x.marks[i]={o:o[0],c:n};d++});save();return d}
 function pickSt(c,msg){if(!c.students.length)return null;const v=prompt(msg+"\n"+c.students.map((x,i)=>(i+1)+". "+x.name).join("\n")+"\n(اكتب الرقم أو جزءاً من الاسم)");if(v===null||!v.trim())return null;const t=v.trim();if(/^\d+$/.test(t))return c.students[Number(t)-1]||null;const e=c.students.find(x=>x.name.trim()===t);if(e)return e;const f=c.students.filter(x=>x.name.includes(t));return f.length===1?f[0]:null}
+/* ===== مضاف: صانع الباركود + اختبارات الروابط + منهج المملكة ===== */
+const QRU="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js";
+async function qrSvg(text){
+ if(!window.qrcode)await loadScript(QRU);
+ qrcode.stringToBytes=qrcode.stringToBytesFuncs["UTF-8"];
+ const q=qrcode(0,"M");q.addData(text,"Byte");q.make();
+ const n=q.getModuleCount(),m=4,u=8,z=(n+2*m)*u;let d="";
+ for(let r=0;r<n;r++)for(let c=0;c<n;c++)if(q.isDark(r,c))d+="M"+(c+m)*u+" "+(r+m)*u+"h"+u+"v"+u+"h-"+u+"z";
+ return '<svg xmlns="http://www.w3.org/2000/svg" width="'+z+'" height="'+z+'" viewBox="0 0 '+z+' '+z+'" shape-rendering="crispEdges"><rect width="100%" height="100%" fill="#fff"/><path d="'+d+'" fill="#000"/></svg>';
+}
+function svgSave(svg,name,png){
+ const w=+/width="(\d+)"/.exec(svg)[1],h=+/height="(\d+)"/.exec(svg)[1];
+ const dl=(blob,fn)=>{const u=URL.createObjectURL(blob),a=el("a",{href:u,download:fn});document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(u),1500)};
+ if(!png)return dl(new Blob([svg],{type:"image/svg+xml"}),name+".svg");
+ const im=new Image();
+ im.onload=()=>{const k=Math.max(1,Math.round(800/Math.max(w,h))),c=document.createElement("canvas");c.width=w*k;c.height=h*k;const x=c.getContext("2d");x.imageSmoothingEnabled=false;x.fillStyle="#fff";x.fillRect(0,0,c.width,c.height);x.drawImage(im,0,0,c.width,c.height);c.toBlob(b=>dl(b,name+".png"))};
+ im.src="data:image/svg+xml;charset=utf-8,"+encodeURIComponent(svg);
+}
+function barcodeV(app){
+ const tx=el("input",{placeholder:"النص أو الرابط أو رقم الطالب"}),
+  kd=el("select",{},el("option",{value:"qr"},"QR — يدعم العربي والروابط"),el("option",{value:"c128"},"باركود خطي Code 128 — أرقام وإنجليزي")),
+  st=el("select",{},el("option",{value:""},"أو اختر طالباً لتعبئة رمزه..."),...S.classes.flatMap(c=>c.students.map(s=>el("option",{value:codeOf(s)},c.name+" - "+s.name)))),
+  cp=el("input",{placeholder:"نص يظهر تحت الرمز (اختياري)"}),pv=el("div",{style:"text-align:center;margin:12px 0;overflow-x:auto"}),err=el("div",{class:"err"});
+ let cur="";
+ const draw=async()=>{err.textContent="";pv.replaceChildren();cur="";const t=tx.value.trim();if(!t)return;
+  try{cur=kd.value==="qr"?await qrSvg(t):c128Svg(t,2,70)}catch(e){err.textContent=kd.value==="qr"?"تعذر تحميل مولّد QR. تأكد من اتصال الإنترنت.":"الباركود الخطي لا يدعم الحروف العربية. اختر QR أو اكتب أرقاماً وحروفاً إنجليزية.";return}
+  const b=el("div",{style:"display:inline-block;background:#fff;color:#000;padding:8px;border-radius:8px;max-width:100%"});b.innerHTML=cur;
+  const s=b.querySelector("svg");s.style.maxWidth="100%";s.style.height="auto";
+  if(cp.value.trim())b.append(el("div",{style:"font-size:14px;margin-top:4px"},cp.value.trim()));
+  pv.append(printBox(b))};
+ tx.oninput=draw;kd.onchange=draw;cp.oninput=draw;
+ st.onchange=()=>{if(st.value){tx.value=st.value;kd.value="c128";draw()}};
+ const need=f=>()=>{if(!cur)return alert("اكتب النص أولاً");f()};
+ app.append(el("div",{class:"card"},el("h2",{},"صانع الباركود"),el("div",{class:"mu"},"حوّل أي نص أو رابط (مثل رابط اختبار Forms) إلى QR أو باركود للطباعة والمشاركة."),tx,kd,st,cp,err,pv,
+  el("div",{class:"toolbar"},el("button",{class:"btn s",onclick:need(()=>svgSave(cur,"barcode",true))},"تنزيل PNG"),el("button",{class:"btn s o",onclick:need(()=>svgSave(cur,"barcode",false))},"تنزيل SVG"),el("button",{class:"btn s o",onclick:need(()=>window.print())},"طباعة"))));
+}
+const CUR=[
+["الأول الابتدائي",{"الدراسات الإسلامية":["أركان الإسلام","الوضوء"],"لغتي":["الحروف الهجائية"],"الرياضيات":["الجمع","الأشكال الهندسية"],"العلوم":["الحواس الخمس","الفصول الأربعة"]}],
+["الثاني الابتدائي",{"لغتي":["الاسم والفعل والحرف"],"الرياضيات":["القيمة المنزلية","الجمع"],"العلوم":["أجزاء النبات","حالات المادة"]}],
+["الثالث الابتدائي",{"لغتي":["الاسم والفعل والحرف"],"الرياضيات":["الضرب","الكسور"],"العلوم":["دورة الماء","الفصول الأربعة"]}],
+["الرابع الابتدائي",{"لغتي":["المبتدأ والخبر"],"الرياضيات":["الضرب","المحيط والمساحة"],"العلوم":["حالات المادة","دورة الماء"]}],
+["الخامس الابتدائي",{"لغتي":["المبتدأ والخبر"],"الرياضيات":["الكسور","المحيط والمساحة"],"العلوم":["الخلية","المجموعة الشمسية"]}],
+["السادس الابتدائي",{"الرياضيات":["النسبة المئوية","الكسور"],"العلوم":["الخلية","المجموعة الشمسية"]}],
+["الأول المتوسط",{"الرياضيات":["الأعداد الصحيحة","المعادلات الخطية"],"العلوم":["حالات المادة","الخلية"]}],
+["الثاني المتوسط",{"الرياضيات":["النسبة المئوية","المعادلات الخطية"],"العلوم":["الخلية","المجموعة الشمسية"]}],
+["الثالث المتوسط",{"الرياضيات":["نظرية فيثاغورس","المعادلات الخطية"],"العلوم":["الوراثة","حالات المادة"]}],
+["الأول الثانوي",{"الرياضيات":["الدوال","المعادلات الخطية"],"الفيزياء":["قانون نيوتن الثاني"],"الأحياء":["الخلية"]}],
+["الثاني الثانوي",{"الرياضيات":["الدوال"],"الفيزياء":["قانون نيوتن الثاني"],"الأحياء":["الوراثة"]}],
+["الثالث الثانوي",{"الرياضيات":["الدوال"],"الأحياء":["الوراثة"],"الفيزياء":["قانون نيوتن الثاني"]}]];
+const RDX={
+"الحروف الهجائية":"# الحروف الهجائية [كتاب]\n- الحروف العربية ثمانية وعشرون حرفاً\n- أولها الألف وآخرها الياء\n\n# لكل حرف شكل وصوت [نجمة]\n- نرى الحرف ونسمع صوته ثم ننطقه معاً\n- مثل: باء بيت، تاء تفاحة\n\n# الخلاصة [صح]\n- نحفظ ترتيب الحروف ونكتبها بخط جميل",
+"المبتدأ والخبر":"# الجملة الاسمية [كتاب]\n- الجملة الاسمية تبدأ باسم مثل: الطالب مجتهد\n- المبتدأ هو الاسم الذي نتحدث عنه: الطالب\n\n# الخبر [صح]\n- الخبر هو ما يكمل معنى المبتدأ: مجتهد\n- المبتدأ والخبر مرفوعان\n\n# الخلاصة\n- مبتدأ + خبر = جملة اسمية مفيدة",
+"الخلية":"# الخلية [دائرة]\n- الخلية وحدة بناء جسم الكائن الحي\n- لا نراها بالعين المجردة بل بالمجهر\n\n# أجزاء الخلية [نجمة]\n- النواة تتحكم في نشاط الخلية\n- الغشاء الخلوي يحمي الخلية وينظم دخول المواد\n- السيتوبلازم يملأ الخلية\n\n# النباتية والحيوانية\n- الخلية النباتية لها جدار خلوي وبلاستيدات خضراء، والحيوانية بدونهما\n\n# الخلاصة [صح]\n- كل الكائنات الحية مكونة من خلايا",
+"النسبة المئوية":"# النسبة المئوية [نجمة]\n- النسبة المئوية كسر مقامه 100 ورمزها %\n- 50% تعني خمسين من مئة أي النصف\n\n# طريقة الحساب\n- لإيجاد 20% من 150 نضرب 150 في 20 ثم نقسم على 100\n- الناتج 30\n\n# الخلاصة [صح]\n- النسبة المئوية = (الجزء ÷ الكل) × 100",
+"الأعداد الصحيحة":"# الأعداد الصحيحة [سهم]\n- تشمل الأعداد الموجبة والسالبة والصفر\n- نمثلها على خط الأعداد: الموجب يمين الصفر والسالب يساره\n\n# المقارنة والجمع\n- كلما اتجهنا يميناً كبر العدد: 2 أكبر من -5\n- جمع عددين سالبين يعطي سالباً: -3 + -4 = -7\n\n# الخلاصة [صح]\n- القيمة المطلقة هي بعد العدد عن الصفر",
+"المعادلات الخطية":"# المعادلة [كتاب]\n- المعادلة جملة فيها مساواة ومجهول مثل: س + 5 = 12\n\n# حل المعادلة [سهم]\n- نعزل المجهول بالعملية العكسية: س = 12 − 5 = 7\n- ما نفعله في طرف نفعله في الطرف الآخر\n\n# التحقق [صح]\n- نعوض: 7 + 5 = 12 والمساواة صحيحة",
+"نظرية فيثاغورس":"# نظرية فيثاغورس [مثلث]\n- في المثلث القائم مربع الوتر يساوي مجموع مربعي الضلعين الآخرين\n- الوتر هو الضلع المقابل للزاوية القائمة وهو الأطول\n\n# مثال\n- ضلعان طولهما 3 و4: 9 + 16 = 25 فالوتر = 5\n\n# الخلاصة [صح]\n- ج² = أ² + ب²",
+"الوراثة":"# الوراثة [نجمة]\n- الوراثة انتقال الصفات من الآباء إلى الأبناء\n- الصفات تحملها الجينات الموجودة في الكروموسومات داخل النواة\n\n# السائدة والمتنحية\n- الصفة السائدة تظهر عند وجودها، والمتنحية تظهر إذا غابت السائدة\n- مندل هو من وضع أسس علم الوراثة\n\n# الخلاصة [صح]\n- الجينات تحمل الصفات الوراثية",
+"الدوال":"# الدالة [سهم]\n- الدالة علاقة تربط كل مدخل (س) بمخرج واحد فقط (ص)\n- مثال: ص = 2س + 1، إذا س = 3 فإن ص = 7\n\n# التمثيل البياني\n- نرسم الأزواج المرتبة (س، ص) على المستوى الإحداثي\n\n# الخلاصة [صح]\n- لا يكون للمدخل الواحد مخرجان في الدالة",
+"قانون نيوتن الثاني":"# قانون نيوتن الثاني [سهم]\n- القوة المحصلة = الكتلة × التسارع: ق = ك × ت\n- كلما زادت القوة زاد التسارع، وكلما زادت الكتلة قل التسارع\n\n# مثال\n- كتلة 2 كجم وقوة 10 نيوتن: التسارع = 10 ÷ 2 = 5 م/ث²\n\n# الخلاصة [صح]\n- وحدة القوة هي النيوتن"};
+function lessonText(g,s,t){const e=EXLIB.find(x=>x[0]===t);return RDX[t]||(e&&e[2])||"# "+t+" [كتاب]\n- المادة: "+s+" — "+g+"\n- هدف الدرس: (اكتب الهدف)\n- المفهوم الأساسي ومثال عليه\n\n# التطبيق\n- نحل مثالاً معاً\n\n# الخلاصة [صح]\n- ما تعلمناه اليوم"}
+const lessonReady=t=>!!(RDX[t]||EXLIB.find(x=>x[0]===t));
+function currV(app){
+ let gi=Number(S.curG)||0,sj=null;
+ const gs=el("select",{},...CUR.map((g,i)=>el("option",{value:i},g[0]))),box=el("div");gs.value=gi;
+ const draw=()=>{box.replaceChildren();const g=CUR[gi],subs=Object.keys(g[1]);if(!sj||!g[1][sj])sj=subs[0];
+  box.append(el("div",{class:"fchips"},...subs.map(s=>el("button",{class:"fchip",style:s===sj?"background:var(--g);color:#fff":"",onclick:()=>{sj=s;draw()}},s))));
+  g[1][sj].forEach(t=>box.append(el("div",{class:"card ls",onclick:()=>open(g[0],sj,t)},el("div",{style:"flex:1"},el("b",{},t),el("div",{class:"mu"},lessonReady(t)?"شرح جاهز":"هيكل شرح يكمله المعلم")),el("button",{class:"btn s"},"▶ اشرح"))))};
+ const open=(g,s,t)=>{const text=lessonText(g,s,t);modal(el("div",{},el("h2",{},t),el("div",{class:"mu"},g+" · "+s),
+  el("button",{class:"btn",onclick:()=>{closeM();explainPlay({id:uid(),title:t,text})}},"▶ ابدأ الشرح صوتاً ورسماً"),
+  el("button",{class:"btn o",onclick:()=>{S.explains=Array.isArray(S.explains)?S.explains:[];const ex={id:uid(),title:t+" — "+g,text};S.explains.push(ex);save();closeM();go("explain",ex.id,false)}},"حفظ في شروحاتي وتعديله"),
+  el("button",{class:"btn o",onclick:closeM},"إغلاق")))};
+ gs.onchange=()=>{gi=Number(gs.value);S.curG=gi;sj=null;save();draw()};
+ app.append(el("div",{class:"card"},el("h2",{},"شرح مناهج المملكة"),el("div",{class:"mu"},"اختر الصف والمادة ثم الدرس. الدروس الجاهزة تُشرح فوراً، وغيرها يعطيك هيكلاً تكمله وتحفظه. راجع عناوين الدروس مع كتاب الطالب في منصة عين."),gs),box);draw();
+}
+function formsV(app){
+ S.forms=Array.isArray(S.forms)?S.forms:[];
+ const ti=el("input",{placeholder:"عنوان الاختبار"}),ur=el("input",{placeholder:"رابط الاختبار (Google Forms أو Microsoft Forms)",dir:"ltr"}),
+  gr=el("select",{},el("option",{value:""},"الصف (اختياري)"),...CUR.map(g=>el("option",{value:g[0]},g[0]))),err=el("div",{class:"err"});
+ const lnk=(t,u)=>el("a",{class:"btn s o",style:"text-decoration:none",href:u,target:"_blank",rel:"noopener"},t);
+ app.append(el("div",{class:"card"},el("h2",{},"اختبارات بالروابط"),el("div",{class:"mu"},"أنشئ الاختبار في Forms، ثم الصق رابطه هنا لتشاركه مع طلابك برابط أو QR."),ti,ur,gr,err,
+  el("button",{class:"btn",onclick:()=>{const u=ur.value.trim();if(!ti.value.trim())return err.textContent="اكتب عنوان الاختبار";if(!/^https?:\/\/\S+$/i.test(u))return err.textContent="الصق رابطاً صحيحاً يبدأ بـ https://";S.forms.push({id:uid(),title:ti.value.trim(),url:u,grade:gr.value});save();render()}},"حفظ الاختبار"),
+  el("div",{class:"toolbar"},lnk("إنشاء في Google Forms","https://forms.new"),lnk("Microsoft Forms","https://forms.office.com"))));
+ app.append(el("div",{class:"sec"},"اختباراتي ("+S.forms.length+")"));
+ if(!S.forms.length)app.append(el("div",{class:"mu",style:"text-align:center;padding:18px"},"لا توجد اختبارات بعد"));
+ S.forms.slice().reverse().forEach(f=>{
+  const copy=()=>{if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(f.url).then(()=>alert("تم نسخ الرابط"),()=>prompt("انسخ الرابط:",f.url));else prompt("انسخ الرابط:",f.url)};
+  const share=()=>{const txt=f.title+"\n"+f.url;if(navigator.share)navigator.share({title:f.title,text:txt}).catch(()=>{});else window.open("https://wa.me/?text="+encodeURIComponent(txt),"_blank")};
+  const qr=async()=>{const box=el("div",{style:"text-align:center;margin:12px 0"},"جاري إنشاء الرمز...");modal(el("div",{},el("h2",{},f.title),box,el("button",{class:"btn o",onclick:closeM},"إغلاق")));
+   try{const svg=await qrSvg(f.url);box.innerHTML='<div style="display:inline-block;background:#fff;padding:8px;border-radius:8px">'+svg+'</div>';const s=box.querySelector("svg");s.style.width="min(260px,100%)";s.style.height="auto";
+    box.append(el("div",{class:"toolbar",style:"margin-top:10px"},el("button",{class:"btn s",onclick:()=>svgSave(svg,"qr-"+f.id,true)},"تنزيل PNG")))}catch(e){box.textContent="تعذر إنشاء QR. تأكد من اتصال الإنترنت."}};
+  app.append(el("div",{class:"card"},el("b",{},f.title),el("div",{class:"mu"},(f.grade?f.grade+" · ":"")+f.url.replace(/^https?:\/\//,"").slice(0,40)),
+   el("div",{class:"toolbar",style:"margin-top:8px"},el("button",{class:"btn s",onclick:()=>window.open(f.url,"_blank")},"فتح"),el("button",{class:"btn s o",onclick:copy},"نسخ الرابط"),el("button",{class:"btn s o",onclick:qr},"QR"),el("button",{class:"btn s o",onclick:share},"مشاركة"),
+   el("button",{class:"del",onclick:()=>{if(confirm("حذف الاختبار؟")){S.forms=S.forms.filter(x=>x!==f);save();render()}}},ic("trash",18)))))});
+}
+Object.assign(TITLES,{barcode:"صانع الباركود",forms:"اختبارات الروابط",curr:"شرح المناهج"});
+const _sp2=space;space=function(app){_sp2(app);app.append(el("div",{class:"sec"},"باركود واختبارات ومناهج"),
+ menuRow("صانع الباركود","أنشئ QR أو باركود لأي نص أو رابط","print","#0891b2","barcode"),
+ menuRow("اختبارات الروابط","اختبارات Google Forms وMicrosoft Forms بالرابط أو QR","doc","#3b82f6","forms"),
+ menuRow("شرح مناهج المملكة","دروس لكل صف ابتدائي ومتوسط وثانوي","plus","#16834a","curr"))};
+const _tv2=testsV;testsV=function(app){_tv2(app);app.append(el("button",{class:"btn o",onclick:()=>go("forms")},"+ اختبارات بالروابط (Forms)"))};
+function syncBar(){let m=document.querySelector('meta[name=theme-color]');if(!m){m=document.createElement("meta");m.name="theme-color";document.head.append(m)}m.content=getComputedStyle(document.documentElement).getPropertyValue("--hb").trim()||"#fff"}
+const _r2=render;render=function(){_r2();syncBar()};
+try{matchMedia("(prefers-color-scheme:dark)").addEventListener("change",syncBar)}catch(e){}
+
 render();
 </script>
 </body>
